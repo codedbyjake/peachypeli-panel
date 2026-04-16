@@ -69,25 +69,20 @@
 
                 {{-- Search row --}}
                 <div class="flex items-center gap-2 border-b border-gray-100 pb-4 dark:border-gray-800">
-                    <div class="relative flex-1">
-                        <div class="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-                            <x-filament::icon icon="tabler-search" class="h-4 w-4 text-gray-400 dark:text-gray-500" />
-                        </div>
-                        <input
+                    <x-filament::input.wrapper prefixIcon="tabler-search" class="flex-1">
+                        <x-filament::input
                             type="text"
                             wire:model.live.debounce.400ms="search"
                             wire:keydown.enter="searchPlugins"
                             placeholder="Search {{ $this->sourceName }} plugins…"
-                            class="h-9 w-full rounded-lg border border-gray-300 bg-white py-0 pl-9 pr-3 text-sm text-gray-900 placeholder-gray-400 transition focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-primary-500"
-                        >
-                    </div>
+                        />
+                    </x-filament::input.wrapper>
                     <x-filament::button
                         wire:click="searchPlugins"
                         wire:loading.attr="disabled"
                         wire:target="searchPlugins"
                         color="gray"
                         icon="tabler-search"
-                        size="sm"
                     >Search</x-filament::button>
                 </div>
 
