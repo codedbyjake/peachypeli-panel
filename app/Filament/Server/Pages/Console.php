@@ -8,6 +8,7 @@ use App\Enums\SubuserPermission;
 use App\Enums\TablerIcon;
 use App\Exceptions\Http\Server\ServerStateConflictException;
 use App\Extensions\Features\FeatureService;
+use App\Filament\Server\Widgets\ServerConnectionInfo;
 use App\Filament\Server\Widgets\ServerConsole;
 use App\Filament\Server\Widgets\ServerCpuChart;
 use App\Filament\Server\Widgets\ServerMemoryChart;
@@ -115,6 +116,8 @@ class Console extends Page
         $allWidgets = [];
 
         $allWidgets = array_merge($allWidgets, static::$customWidgets[ConsoleWidgetPosition::Top->value] ?? []);
+
+        $allWidgets[] = ServerConnectionInfo::class;
 
         $allWidgets[] = ServerOverview::class;
 
