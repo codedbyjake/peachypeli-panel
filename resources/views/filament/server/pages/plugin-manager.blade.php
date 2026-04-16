@@ -104,7 +104,30 @@
                     </div>
 
                 @else
-                    <div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                    <style>
+                        .pm-grid {
+                            display: grid;
+                            grid-template-columns: repeat(2, minmax(0, 1fr));
+                            gap: 1rem;
+                        }
+                        @media (min-width: 768px) {
+                            .pm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+                        }
+                        @media (min-width: 1024px) {
+                            .pm-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+                        }
+                        .pm-install-btn:hover:not(:disabled) { filter: brightness(1.1); }
+                        .pm-install-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+                        .pm-ext-link:hover { opacity: 0.7; }
+                        .pm-desc {
+                            display: -webkit-box;
+                            -webkit-line-clamp: 2;
+                            -webkit-box-orient: vertical;
+                            overflow: hidden;
+                        }
+                    </style>
+
+                    <div class="pm-grid">
                         @foreach ($this->results as $plugin)
                             @php
                                 $pluginId         = $plugin['id'] ?? '';
@@ -119,56 +142,58 @@
                                         : (string) $dl);
                             @endphp
 
-                            <div class="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+                            {{-- Card --}}
+                            <div style="display:flex;flex-direction:column;overflow:hidden;border-radius:0.75rem;border:1px solid #e5e7eb;background:#fff" class="dark:border-gray-700 dark:bg-gray-900">
 
                                 {{-- Thumbnail — fixed height, image centred and size-constrained --}}
-                                <div class="flex h-24 shrink-0 items-center justify-center bg-gray-50 dark:bg-gray-800/50 px-4">
+                                <div style="display:flex;height:6rem;flex-shrink:0;align-items:center;justify-content:center;padding:0 1rem" class="bg-gray-50 dark:bg-gray-800">
                                     @if ($plugin['icon_url'] ?? null)
                                         <img
                                             src="{{ $plugin['icon_url'] }}"
                                             alt=""
-                                            class="max-h-12 w-auto rounded-lg object-cover shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10"
+                                            style="max-height:3rem;width:auto;border-radius:0.5rem;object-fit:cover;box-shadow:0 1px 2px 0 rgba(0,0,0,.05)"
                                         >
                                     @else
-                                        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-700">
+                                        <div style="display:flex;height:3rem;width:3rem;flex-shrink:0;align-items:center;justify-content:center;border-radius:0.5rem" class="bg-gray-200 dark:bg-gray-700">
                                             <x-filament::icon icon="tabler-puzzle" class="h-6 w-6 text-gray-400 dark:text-gray-500" />
                                         </div>
                                     @endif
                                 </div>
 
                                 {{-- Card body --}}
-                                <div class="flex flex-1 flex-col p-3">
+                                <div style="display:flex;flex:1 1 0%;flex-direction:column;padding:0.75rem">
 
-                                    <p class="truncate text-sm font-semibold leading-snug text-gray-900 dark:text-white">
+                                    <p style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.875rem;font-weight:600;line-height:1.375" class="text-gray-900 dark:text-white">
                                         {{ $plugin['name'] }}
                                     </p>
 
-                                    <p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
+                                    <p style="margin-top:0.125rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.75rem" class="text-gray-500 dark:text-gray-400">
                                         by {{ $plugin['author'] ?? 'Unknown' }}
                                     </p>
 
                                     @if ($plugin['description'] ?? null)
-                                        <p class="mt-1.5 line-clamp-2 text-xs leading-relaxed text-gray-400 dark:text-gray-500">
+                                        <p class="pm-desc text-gray-400 dark:text-gray-500" style="margin-top:0.375rem;font-size:0.75rem;line-height:1.625">
                                             {{ $plugin['description'] }}
                                         </p>
                                     @endif
 
                                     {{-- Footer pushed to bottom --}}
-                                    <div class="mt-auto pt-3">
+                                    <div style="margin-top:auto;padding-top:0.75rem">
 
                                         {{-- Meta row: version · downloads · external link --}}
-                                        <div class="mb-2 flex items-center gap-1.5 text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                                        <div style="display:flex;align-items:center;gap:0.375rem;margin-bottom:0.5rem;font-size:0.75rem;font-variant-numeric:tabular-nums" class="text-gray-400 dark:text-gray-500">
                                             @if (($plugin['version'] ?? null) && $plugin['version'] !== 'Latest')
-                                                <span class="truncate">{{ $plugin['version'] }}</span>
-                                                <span class="shrink-0 text-gray-200 dark:text-gray-700">&middot;</span>
+                                                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $plugin['version'] }}</span>
+                                                <span style="flex-shrink:0" class="text-gray-200 dark:text-gray-700">&middot;</span>
                                             @endif
-                                            <span class="truncate">{{ $dlFmt }}</span>
+                                            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $dlFmt }}</span>
                                             @if ($plugin['url'] ?? null)
                                                 <a
                                                     href="{{ $plugin['url'] }}"
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    class="ml-auto shrink-0 text-gray-300 transition-colors hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400"
+                                                    class="pm-ext-link text-gray-300 dark:text-gray-600"
+                                                    style="margin-left:auto;flex-shrink:0;text-decoration:none;transition:opacity .15s"
                                                     title="View on {{ $this->sourceName }}"
                                                 >
                                                     <x-filament::icon icon="tabler-external-link" class="h-3.5 w-3.5" />
@@ -177,7 +202,7 @@
                                         </div>
 
                                         @if ($alreadyInstalled)
-                                            <div class="flex w-full items-center justify-center gap-1.5 rounded-lg border border-success-200 bg-success-50 py-1.5 text-xs font-medium text-success-700 dark:border-success-800/50 dark:bg-success-900/20 dark:text-success-400">
+                                            <div style="display:flex;width:100%;align-items:center;justify-content:center;gap:0.375rem;border-radius:0.5rem;padding:0.375rem 0;font-size:0.75rem;font-weight:500" class="border border-success-200 bg-success-50 text-success-700 dark:border-success-800/50 dark:bg-success-900/20 dark:text-success-400">
                                                 <x-filament::icon icon="tabler-circle-check" class="h-3.5 w-3.5 shrink-0" />
                                                 Installed
                                             </div>
@@ -187,7 +212,8 @@
                                                 wire:loading.attr="disabled"
                                                 wire:target="install"
                                                 @disabled((bool) $this->installingId)
-                                                class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-500 disabled:opacity-60 dark:bg-primary-500 dark:hover:bg-primary-400"
+                                                class="pm-install-btn"
+                                                style="display:flex;width:100%;align-items:center;justify-content:center;gap:0.375rem;border-radius:0.5rem;border:none;padding:0.375rem 0.75rem;font-size:0.75rem;font-weight:600;color:#fff;box-shadow:0 1px 2px 0 rgba(0,0,0,.05);cursor:pointer;background-color:rgb(var(--color-primary-600,79 70 229));transition:filter .15s"
                                             >
                                                 <x-filament::icon
                                                     :icon="$isInstalling ? 'tabler-loader' : 'tabler-download'"
