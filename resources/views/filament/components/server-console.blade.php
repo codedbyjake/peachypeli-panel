@@ -207,16 +207,19 @@
                     // Skip the column-header row ("id  name  ping  connected  addr  owner")
                     if (/^\s*id\s+name/i.test(line)) return;
 
-                    // Player rows: "  <id>  <"name">  <ping>  <H:MM:SS>  <addr>  <steamid64>  ..."
-                    // SteamID64 is always 17 digits starting with 76561
+                    // Player rows: "  <id>  <"name">  <ping>  <H:MM:SS>  ..."
+                    // Only the first four columns are guaranteed; addr/steamid are absent on
+                    // vanilla Rust, so match those required fields then scan for a SteamID64
+                    // separately so the row is never dropped just because SteamID is missing.
                     const playerRowMatch = line.match(
-                        /^\s*\d+\s+(?:"([^"]*)"|(\S+))\s+\d+\s+([\d:]+)\s+\S+\s+(76561\d{12})/
+                        /^\s*\d+\s+(?:"([^"]*)"|(\S+))\s+\d+\s+([\d:]+)/
                     );
                     if (playerRowMatch) {
+                        const steamIdMatch = line.match(/\b(76561\d{12})\b/);
                         playerListPlayers.push({
                             name:      playerRowMatch[1] || playerRowMatch[2],
                             connected: playerRowMatch[3],
-                            steamId:   playerRowMatch[4],
+                            steamId:   steamIdMatch ? steamIdMatch[1] : '',
                         });
                         if (playerListPlayers.length >= playerListCount) {
                             flushPlayerList(true);

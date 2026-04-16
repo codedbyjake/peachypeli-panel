@@ -1,9 +1,9 @@
 <footer class="flex flex-col items-center justify-center text-center space-y-2 p-4 text-gray-600 dark:text-gray-400">
     {{ \Filament\Support\Facades\FilamentView::renderHook(\App\Enums\CustomRenderHooks::FooterStart->value) }}
 
-    <a class="font-semibold" href="https://pelican.dev/docs/#core-team" target="_blank">
-        &copy; {{ date('Y') }} Pelican
-    </a>
+    <span class="font-semibold">
+        &copy; Peachy Servers  {{ date('Y') }} &ndash; All Rights Reserved.
+    </span>
 
     @if(config('app.debug'))
         <div class="flex space-x-1 text-xs">
