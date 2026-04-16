@@ -11,6 +11,16 @@ class UModSource implements PluginSourceInterface
 
     private const SEARCH_URL = 'https://umod.org/plugins/search.json';
 
+    private string $installDir;
+
+    private string $framework;
+
+    public function __construct(string $framework = 'oxide', string $installDir = '/oxide/plugins')
+    {
+        $this->framework  = $framework;
+        $this->installDir = $installDir;
+    }
+
     public function search(string $query): array
     {
         $response = Http::timeout(10)->connectTimeout(5)->get(self::SEARCH_URL, [
@@ -78,12 +88,13 @@ class UModSource implements PluginSourceInterface
 
     public function getName(): string
     {
-        return 'uMod';
+        // Surface which framework was detected so the UI can reflect it.
+        return $this->framework === 'carbon' ? 'uMod (Carbon)' : 'uMod (Oxide)';
     }
 
     public function getInstallDir(): string
     {
-        return '/oxide/plugins';
+        return $this->installDir;
     }
 
     public function getSlug(): string
