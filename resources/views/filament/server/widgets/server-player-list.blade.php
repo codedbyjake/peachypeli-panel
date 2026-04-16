@@ -55,12 +55,12 @@
                                 destructOpen: false,
 
                                 ask(command, label, withReason = false) {
-                                    this.cmd         = command;
-                                    this.lbl         = label;
-                                    this.reason      = '';
-                                    this.needsReason = withReason;
-                                    this.pending     = true;
-                                    this.moreOpen    = false;
+                                    this.cmd          = command;
+                                    this.lbl          = label;
+                                    this.reason       = '';
+                                    this.needsReason  = withReason;
+                                    this.pending      = true;
+                                    this.moreOpen     = false;
                                     this.destructOpen = false;
                                 },
                                 confirm() {
@@ -75,9 +75,10 @@
                                 },
                                 cancel() { this.pending = false; }
                             }"
-                            class="flex flex-col gap-3 py-4 px-1 first:pt-2 last:pb-2"
+                            class="flex justify-between gap-4 py-3 px-1 first:pt-1 last:pb-1"
+                            :class="pending ? 'items-start' : 'items-center'"
                         >
-                            {{-- Player info --}}
+                            {{-- Left: player info --}}
                             <div class="flex items-center gap-2 min-w-0">
                                 <x-filament::icon
                                     icon="tabler-user"
@@ -87,140 +88,142 @@
                                     {{ $pName }}
                                 </span>
                                 @if ($pConnected)
-                                    <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0 tabular-nums ml-1">
+                                    <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
                                         {{ $pConnected }}
                                     </span>
                                 @endif
                             </div>
 
-                            {{-- Actions --}}
+                            {{-- Right: actions --}}
                             @if ($pSteamId)
+                                <div class="shrink-0">
 
-                                {{-- Normal action buttons --}}
-                                <template x-if="!pending">
-                                    <div class="flex flex-wrap items-center gap-2">
+                                    {{-- Normal action buttons --}}
+                                    <template x-if="!pending">
+                                        <div class="flex items-center gap-2">
 
-                                        {{-- Kick --}}
-                                        <x-filament::button
-                                            icon="tabler-player-eject"
-                                            color="warning"
-                                            size="sm"
-                                            x-on:click="ask('kick {{ $pSteamId }}', 'Kick', true)"
-                                        >
-                                            Kick
-                                        </x-filament::button>
-
-                                        {{-- Ban --}}
-                                        <x-filament::button
-                                            icon="tabler-ban"
-                                            color="danger"
-                                            size="sm"
-                                            x-on:click="ask('ban {{ $pSteamId }}', 'Ban', true)"
-                                        >
-                                            Ban
-                                        </x-filament::button>
-
-                                        {{-- Moderation dropdown: Mute / Unmute / Unban --}}
-                                        <div class="relative" x-on:click.outside="moreOpen = false">
+                                            {{-- Kick --}}
                                             <x-filament::button
-                                                icon="tabler-dots"
-                                                color="gray"
+                                                icon="tabler-player-eject"
+                                                color="warning"
                                                 size="sm"
-                                                x-on:click="moreOpen = !moreOpen; destructOpen = false"
+                                                x-on:click="ask('kick {{ $pSteamId }}', 'Kick', true)"
                                             >
-                                                More
+                                                Kick
                                             </x-filament::button>
-                                            <div
-                                                x-show="moreOpen"
-                                                x-transition
-                                                class="absolute left-0 z-20 mt-1 w-36 rounded-lg bg-white dark:bg-gray-900 shadow-lg ring-1 ring-gray-200 dark:ring-gray-700 py-1"
-                                            >
-                                                <button
-                                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                                    x-on:click="moreOpen = false; ask('mute {{ $pSteamId }}', 'Mute', true)"
-                                                >Mute</button>
-                                                <button
-                                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                                    x-on:click="moreOpen = false; ask('unmute {{ $pSteamId }}', 'Unmute')"
-                                                >Unmute</button>
-                                                <button
-                                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                                    x-on:click="moreOpen = false; ask('unban {{ $pSteamId }}', 'Unban')"
-                                                >Unban</button>
-                                            </div>
-                                        </div>
 
-                                        {{-- Destructive dropdown: Kill / Injure --}}
-                                        <div class="relative" x-on:click.outside="destructOpen = false">
+                                            {{-- Ban --}}
                                             <x-filament::button
-                                                icon="tabler-bolt"
+                                                icon="tabler-ban"
                                                 color="danger"
                                                 size="sm"
-                                                outlined
-                                                x-on:click="destructOpen = !destructOpen; moreOpen = false"
+                                                x-on:click="ask('ban {{ $pSteamId }}', 'Ban', true)"
                                             >
-                                                Actions
+                                                Ban
                                             </x-filament::button>
-                                            <div
-                                                x-show="destructOpen"
-                                                x-transition
-                                                class="absolute left-0 z-20 mt-1 w-36 rounded-lg bg-white dark:bg-gray-900 shadow-lg ring-1 ring-gray-200 dark:ring-gray-700 py-1"
-                                            >
-                                                <button
-                                                    class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                                    x-on:click="destructOpen = false; ask('global.killplayer {{ $pSteamId }}', 'Kill')"
-                                                >Kill</button>
-                                                <button
-                                                    class="w-full text-left px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20"
-                                                    x-on:click="destructOpen = false; ask('global.injureplayer {{ $pSteamId }}', 'Injure')"
-                                                >Injure</button>
+
+                                            {{-- Moderation dropdown: Mute / Unmute / Unban --}}
+                                            <div class="relative" x-on:click.outside="moreOpen = false">
+                                                <x-filament::button
+                                                    icon="tabler-dots"
+                                                    color="gray"
+                                                    size="sm"
+                                                    x-on:click="moreOpen = !moreOpen; destructOpen = false"
+                                                >
+                                                    More
+                                                </x-filament::button>
+                                                <div
+                                                    x-show="moreOpen"
+                                                    x-transition
+                                                    class="absolute right-0 z-20 mt-1 w-36 rounded-lg bg-white dark:bg-gray-900 shadow-lg ring-1 ring-gray-200 dark:ring-gray-700 py-1"
+                                                >
+                                                    <button
+                                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        x-on:click="moreOpen = false; ask('mute {{ $pSteamId }}', 'Mute', true)"
+                                                    >Mute</button>
+                                                    <button
+                                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        x-on:click="moreOpen = false; ask('unmute {{ $pSteamId }}', 'Unmute')"
+                                                    >Unmute</button>
+                                                    <button
+                                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        x-on:click="moreOpen = false; ask('unban {{ $pSteamId }}', 'Unban')"
+                                                    >Unban</button>
+                                                </div>
                                             </div>
+
+                                            {{-- Destructive dropdown: Kill / Injure --}}
+                                            <div class="relative" x-on:click.outside="destructOpen = false">
+                                                <x-filament::button
+                                                    icon="tabler-bolt"
+                                                    color="danger"
+                                                    size="sm"
+                                                    outlined
+                                                    x-on:click="destructOpen = !destructOpen; moreOpen = false"
+                                                >
+                                                    Actions
+                                                </x-filament::button>
+                                                <div
+                                                    x-show="destructOpen"
+                                                    x-transition
+                                                    class="absolute right-0 z-20 mt-1 w-36 rounded-lg bg-white dark:bg-gray-900 shadow-lg ring-1 ring-gray-200 dark:ring-gray-700 py-1"
+                                                >
+                                                    <button
+                                                        class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                        x-on:click="destructOpen = false; ask('global.killplayer {{ $pSteamId }}', 'Kill')"
+                                                    >Kill</button>
+                                                    <button
+                                                        class="w-full text-left px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                                        x-on:click="destructOpen = false; ask('global.injureplayer {{ $pSteamId }}', 'Injure')"
+                                                    >Injure</button>
+                                                </div>
+                                            </div>
+
                                         </div>
+                                    </template>
 
-                                    </div>
-                                </template>
+                                    {{-- Inline confirmation (with optional reason input) --}}
+                                    <template x-if="pending">
+                                        <div class="flex flex-col items-end gap-2">
 
-                                {{-- Inline confirmation (with optional reason input) --}}
-                                <template x-if="pending">
-                                    <div class="flex flex-col gap-3">
+                                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                                                <span x-text="lbl + ' {{ $pNameSafe }}?'"></span>
+                                            </p>
 
-                                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            <span x-text="lbl"></span>&nbsp;<span class="font-semibold text-gray-900 dark:text-gray-100">{{ $pNameSafe }}</span>?
-                                        </p>
+                                            <template x-if="needsReason">
+                                                <input
+                                                    type="text"
+                                                    x-model="reason"
+                                                    placeholder="Reason (optional)"
+                                                    x-on:keydown.enter="confirm()"
+                                                    x-on:keydown.escape="cancel()"
+                                                    class="w-52 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400"
+                                                >
+                                            </template>
 
-                                        <template x-if="needsReason">
-                                            <input
-                                                type="text"
-                                                x-model="reason"
-                                                placeholder="Reason (optional)"
-                                                x-on:keydown.enter="confirm()"
-                                                x-on:keydown.escape="cancel()"
-                                                class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400"
-                                            >
-                                        </template>
+                                            <div class="flex items-center gap-2">
+                                                <x-filament::button
+                                                    icon="tabler-check"
+                                                    color="success"
+                                                    size="sm"
+                                                    x-on:click="confirm()"
+                                                >
+                                                    Confirm
+                                                </x-filament::button>
+                                                <x-filament::button
+                                                    icon="tabler-x"
+                                                    color="gray"
+                                                    size="sm"
+                                                    x-on:click="cancel()"
+                                                >
+                                                    Cancel
+                                                </x-filament::button>
+                                            </div>
 
-                                        <div class="flex items-center gap-2">
-                                            <x-filament::button
-                                                icon="tabler-check"
-                                                color="success"
-                                                size="sm"
-                                                x-on:click="confirm()"
-                                            >
-                                                Confirm
-                                            </x-filament::button>
-                                            <x-filament::button
-                                                icon="tabler-x"
-                                                color="gray"
-                                                size="sm"
-                                                x-on:click="cancel()"
-                                            >
-                                                Cancel
-                                            </x-filament::button>
                                         </div>
+                                    </template>
 
-                                    </div>
-                                </template>
-
+                                </div>
                             @endif
                         </div>
                     @endforeach
