@@ -4,6 +4,7 @@ namespace App\Filament\Server\Resources\Schedules\Pages;
 
 use App\Filament\Server\Resources\Schedules\ScheduleResource;
 use App\Filament\Server\Widgets\RunTaskWidget;
+use App\Filament\Server\Widgets\SavedTasksWidget;
 use App\Traits\Filament\CanCustomizeHeaderActions;
 use App\Traits\Filament\CanCustomizeHeaderWidgets;
 use Filament\Resources\Pages\ListRecords;
@@ -19,6 +20,7 @@ class ListSchedules extends ListRecords
     {
         return [
             RunTaskWidget::class,
+            SavedTasksWidget::class,
         ];
     }
 
