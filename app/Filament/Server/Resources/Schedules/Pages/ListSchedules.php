@@ -3,6 +3,7 @@
 namespace App\Filament\Server\Resources\Schedules\Pages;
 
 use App\Filament\Server\Resources\Schedules\ScheduleResource;
+use App\Filament\Server\Widgets\RunTaskWidget;
 use App\Traits\Filament\CanCustomizeHeaderActions;
 use App\Traits\Filament\CanCustomizeHeaderWidgets;
 use Filament\Resources\Pages\ListRecords;
@@ -13,6 +14,13 @@ class ListSchedules extends ListRecords
     use CanCustomizeHeaderWidgets;
 
     protected static string $resource = ScheduleResource::class;
+
+    public function getFooterWidgets(): array
+    {
+        return [
+            RunTaskWidget::class,
+        ];
+    }
 
     public function getBreadcrumbs(): array
     {
