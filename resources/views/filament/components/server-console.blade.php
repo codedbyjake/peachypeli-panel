@@ -136,6 +136,112 @@
             $wire.dispatchSelf('websocket-error');
         };
 
+        // ── Player list intercept state ──────────────────────────────────────────
+        let playerListMode = null;     // null | 'minecraft' | 'rust'
+        let playerListPlayers = [];
+        let playerListCount = 0;
+        let playerListMax = 0;
+        let playerListFoundHeader = false;
+        let playerListTimeout = null;
+
+        const stripAnsi = (str) => str
+            .replace(/\x1b\[[\d;]*[A-Za-z]/g, '')  // ANSI escape sequences
+            .replace(/§./g, '')                       // Minecraft § colour codes
+            .replace(/\r?\n$/, '');
+
+        const flushPlayerList = (available) => {
+            clearTimeout(playerListTimeout);
+            Livewire.dispatch('player-list-update', {
+                players: playerListPlayers,
+                count: playerListCount,
+                max: playerListMax,
+                available: available,
+            });
+            playerListMode = null;
+            playerListFoundHeader = false;
+            playerListPlayers = [];
+            playerListCount = 0;
+            playerListMax = 0;
+        };
+
+        const interceptPlayerListLine = (rawLine) => {
+            const line = stripAnsi(rawLine).trim();
+            if (!line) return;
+
+            if (playerListMode === 'minecraft') {
+                // "There are X of a max of Y players online: Name1, Name2"
+                const headerMatch = line.match(/there are (\d+) of a max of (\d+) players online[:.]\s*(.*)/i);
+                if (headerMatch) {
+                    playerListCount = parseInt(headerMatch[1], 10);
+                    playerListMax   = parseInt(headerMatch[2], 10);
+                    const inlineNames = headerMatch[3].trim();
+
+                    if (playerListCount === 0) {
+                        flushPlayerList(true);
+                    } else if (inlineNames) {
+                        // Java edition — all names on the same line
+                        playerListPlayers = inlineNames.split(/,\s*/).map(n => n.trim()).filter(Boolean);
+                        flushPlayerList(true);
+                    } else {
+                        // Bedrock — names follow on subsequent lines
+                        playerListFoundHeader = true;
+                    }
+                } else if (playerListFoundHeader && line) {
+                    playerListPlayers.push(...line.split(/,\s*/).map(n => n.trim()).filter(Boolean));
+                    if (playerListPlayers.length >= playerListCount) {
+                        flushPlayerList(true);
+                    }
+                }
+
+            } else if (playerListMode === 'rust') {
+                // "players : X (Y max) (0 queued) ..."
+                const countMatch = line.match(/^players\s*:\s*(\d+)\s*\((\d+)\s*max\)/i);
+                if (countMatch) {
+                    playerListCount = parseInt(countMatch[1], 10);
+                    playerListMax   = parseInt(countMatch[2], 10);
+                    playerListFoundHeader = true;
+                    if (playerListCount === 0) {
+                        flushPlayerList(true);
+                    }
+                } else if (playerListFoundHeader) {
+                    // Skip the column-header row ("id  name  ping  connected  addr  owner")
+                    if (/^\s*id\s+name/i.test(line)) return;
+
+                    // Player rows: "  12345   PlayerName   55   00:30:00  ..."
+                    const nameMatch = line.match(/^\s*\d+\s+(\S+)/);
+                    if (nameMatch) {
+                        playerListPlayers.push(nameMatch[1]);
+                        if (playerListPlayers.length >= playerListCount) {
+                            flushPlayerList(true);
+                        }
+                    }
+                }
+            }
+        };
+
+        Livewire.on('request-player-list', ({ gameType }) => {
+            if (!gameType || gameType === 'unknown') return;
+
+            // Reset state for a fresh capture
+            clearTimeout(playerListTimeout);
+            playerListMode = gameType;
+            playerListPlayers = [];
+            playerListCount = 0;
+            playerListMax = 0;
+            playerListFoundHeader = false;
+
+            const command = gameType === 'minecraft' ? 'list' : 'status';
+
+            socket.send(JSON.stringify({
+                'event': 'send command',
+                'args': [command],
+            }));
+
+            // Time-out after 5 s if no usable response arrives
+            playerListTimeout = setTimeout(() => flushPlayerList(false), 5000);
+        });
+        // ─────────────────────────────────────────────────────────────────────
+
         socket.onmessage = function(websocketMessageEvent) {
             let { event, args } = JSON.parse(websocketMessageEvent.data);
 
@@ -143,6 +249,7 @@
                 case 'console output':
                 case 'install output':
                     handleConsoleOutput(args[0]);
+                    if (playerListMode) interceptPlayerListLine(args[0]);
                     break;
                 case 'feature match':
                     Livewire.dispatch('mount-feature', { data: args[0] });

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Client\Servers;
 
 use App\Exceptions\DisplayException;
+use App\Exceptions\Http\HttpForbiddenException;
 use App\Exceptions\Model\DataValidationException;
 use App\Facades\Activity;
 use App\Http\Controllers\Api\Client\ClientApiController;
@@ -129,28 +130,12 @@ class NetworkAllocationController extends ClientApiController
     /**
      * Delete allocation
      *
-     * Delete an allocation from a server.
+     * Deletion of allocations by users is disabled; allocations are always preserved.
      *
-     * @throws DisplayException
+     * @throws HttpForbiddenException
      */
     public function delete(DeleteAllocationRequest $request, Server $server, Allocation $allocation): JsonResponse
     {
-        // Don't allow the deletion of allocations if the server does not have an
-        // allocation limit set.
-        if (empty($server->allocation_limit)) {
-            throw new DisplayException('You cannot delete allocations for this server: no allocation limit is set.');
-        }
-
-        Allocation::query()->where('id', $allocation->id)->update([
-            'notes' => null,
-            'server_id' => null,
-        ]);
-
-        Activity::event('server:allocation.delete')
-            ->subject($allocation)
-            ->property('allocation', $allocation->address)
-            ->log();
-
-        return new JsonResponse([], JsonResponse::HTTP_NO_CONTENT);
+        throw new HttpForbiddenException('Deleting allocations is not permitted.');
     }
 }

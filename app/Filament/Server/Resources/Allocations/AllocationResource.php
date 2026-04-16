@@ -16,7 +16,6 @@ use App\Traits\Filament\CanModifyTable;
 use BackedEnum;
 use Exception;
 use Filament\Actions\Action;
-use Filament\Actions\DetachAction;
 use Filament\Facades\Filament;
 use Filament\Resources\Pages\PageRegistration;
 use Filament\Resources\Resource;
@@ -78,25 +77,6 @@ class AllocationResource extends Resource
                     ->tooltip(trans('server/network.locked_helper'))
                     ->trueIcon(TablerIcon::Lock)
                     ->falseIcon(TablerIcon::LockOpen),
-            ])
-            ->recordActions([
-                DetachAction::make()
-                    ->visible(fn (Allocation $allocation) => !$allocation->is_locked || user()?->can('update', $allocation->node))
-                    ->authorize(fn () => user()?->can(SubuserPermission::AllocationDelete, $server))
-                    ->label(trans('server/network.delete'))
-                    ->action(function (Allocation $allocation) {
-                        Allocation::where('id', $allocation->id)->update([
-                            'notes' => null,
-                            'is_locked' => false,
-                            'server_id' => null,
-                        ]);
-
-                        Activity::event('server:allocation.delete')
-                            ->subject($allocation)
-                            ->property('allocation', $allocation->address)
-                            ->log();
-                    })
-                    ->after(fn (Allocation $allocation) => $allocation->id === $server->allocation_id && $server->update(['allocation_id' => $server->allocations()->first()?->id])),
             ])
             ->toolbarActions([
                 Action::make('add_allocation')

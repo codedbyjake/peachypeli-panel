@@ -13,6 +13,7 @@ use App\Filament\Server\Widgets\ServerCpuChart;
 use App\Filament\Server\Widgets\ServerMemoryChart;
 use App\Filament\Server\Widgets\ServerNetworkChart;
 use App\Filament\Server\Widgets\ServerOverview;
+use App\Filament\Server\Widgets\ServerPlayerList;
 use App\Livewire\AlertBanner;
 use App\Models\Server;
 use App\Traits\Filament\CanCustomizeHeaderActions;
@@ -128,6 +129,8 @@ class Console extends Page
             ServerMemoryChart::class,
             ServerNetworkChart::class,
         ]);
+
+        $allWidgets[] = ServerPlayerList::class;
 
         $allWidgets = array_merge($allWidgets, static::$customWidgets[ConsoleWidgetPosition::Bottom->value] ?? []);
 
