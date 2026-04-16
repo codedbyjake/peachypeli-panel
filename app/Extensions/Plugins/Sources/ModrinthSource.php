@@ -24,6 +24,11 @@ class ModrinthSource implements PluginSourceInterface
             ]);
 
         if (!$response->successful()) {
+            \Illuminate\Support\Facades\Log::error('ModrinthSource search failed', [
+                'status' => $response->status(),
+                'body'   => substr($response->body(), 0, 500),
+            ]);
+
             return [];
         }
 
@@ -41,6 +46,11 @@ class ModrinthSource implements PluginSourceInterface
             ]);
 
         if (!$response->successful()) {
+            \Illuminate\Support\Facades\Log::error('ModrinthSource getFeatured failed', [
+                'status' => $response->status(),
+                'body'   => substr($response->body(), 0, 500),
+            ]);
+
             return [];
         }
 
@@ -109,7 +119,9 @@ class ModrinthSource implements PluginSourceInterface
                 'name'         => $p['title'] ?? 'Unknown',
                 'author'       => $p['author'] ?? 'Unknown',
                 'description'  => $p['description'] ?? '',
-                'version'      => $p['latest_version'] ?? 'unknown',
+                // 'latest_version' from search is a version ID hash, not a readable string.
+                // Real version number is resolved via getLatestVersion() at install time.
+                'version'      => 'Latest',
                 'downloads'    => (int) ($p['downloads'] ?? 0),
                 'icon_url'     => $p['icon_url'] ?? null,
                 'url'          => 'https://modrinth.com/plugin/' . ($p['slug'] ?? $p['project_id']),

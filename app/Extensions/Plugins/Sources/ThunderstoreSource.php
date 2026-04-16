@@ -26,6 +26,11 @@ class ThunderstoreSource implements PluginSourceInterface
             ->get(self::BASE_URL . "/c/{$this->community}/api/v1/package/");
 
         if (!$response->successful()) {
+            \Illuminate\Support\Facades\Log::error('ThunderstoreSource search failed', [
+                'community' => $this->community,
+                'status'    => $response->status(),
+            ]);
+
             return [];
         }
 
@@ -54,6 +59,11 @@ class ThunderstoreSource implements PluginSourceInterface
             ->get(self::BASE_URL . "/c/{$this->community}/api/v1/package/");
 
         if (!$response->successful()) {
+            \Illuminate\Support\Facades\Log::error('ThunderstoreSource getFeatured failed', [
+                'community' => $this->community,
+                'status'    => $response->status(),
+            ]);
+
             return [];
         }
 

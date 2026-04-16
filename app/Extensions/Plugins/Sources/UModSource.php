@@ -9,16 +9,24 @@ class UModSource implements PluginSourceInterface
 {
     private const BASE_URL = 'https://umod.org';
 
+    private const SEARCH_URL = 'https://umod.org/plugins/search.json';
+
     public function search(string $query): array
     {
-        $response = Http::timeout(10)->connectTimeout(5)->get(self::BASE_URL . '/plugins.json', [
-            'search' => $query,
-            'sort'   => 'downloads',
-            'count'  => 20,
-            'page'   => 1,
+        $response = Http::timeout(10)->connectTimeout(5)->get(self::SEARCH_URL, [
+            'query'       => $query,
+            'game_filter' => 'rust',
+            'sort'        => 'downloads',
+            'count'       => 20,
+            'page'        => 1,
         ]);
 
         if (!$response->successful()) {
+            \Illuminate\Support\Facades\Log::error('UModSource search failed', [
+                'status' => $response->status(),
+                'body'   => substr($response->body(), 0, 500),
+            ]);
+
             return [];
         }
 
@@ -27,13 +35,19 @@ class UModSource implements PluginSourceInterface
 
     public function getFeatured(): array
     {
-        $response = Http::timeout(10)->connectTimeout(5)->get(self::BASE_URL . '/plugins.json', [
-            'sort'  => 'downloads',
-            'count' => 20,
-            'page'  => 1,
+        $response = Http::timeout(10)->connectTimeout(5)->get(self::SEARCH_URL, [
+            'game_filter' => 'rust',
+            'sort'        => 'downloads',
+            'count'       => 20,
+            'page'        => 1,
         ]);
 
         if (!$response->successful()) {
+            \Illuminate\Support\Facades\Log::error('UModSource getFeatured failed', [
+                'status' => $response->status(),
+                'body'   => substr($response->body(), 0, 500),
+            ]);
+
             return [];
         }
 
@@ -45,6 +59,11 @@ class UModSource implements PluginSourceInterface
         $response = Http::timeout(10)->connectTimeout(5)->get(self::BASE_URL . "/plugins/{$pluginId}.json");
 
         if (!$response->successful()) {
+            \Illuminate\Support\Facades\Log::error('UModSource getLatestVersion failed', [
+                'plugin_id' => $pluginId,
+                'status'    => $response->status(),
+            ]);
+
             return null;
         }
 
@@ -53,6 +72,7 @@ class UModSource implements PluginSourceInterface
         return [
             'version'      => $data['latest_release_version_formatted'] ?? $data['latest_release_version'] ?? 'unknown',
             'download_url' => $data['download_url'] ?? null,
+            'file_name'    => basename($data['download_url'] ?? ''),
         ];
     }
 
@@ -87,13 +107,14 @@ class UModSource implements PluginSourceInterface
 
             return [
                 'id'           => $p['slug'] ?? $p['name'] ?? null,
-                'name'         => $p['name'] ?? 'Unknown',
+                // 'title' is the human-readable display name; 'name' is the technical/file name
+                'name'         => $p['title'] ?? $p['name'] ?? 'Unknown',
                 'author'       => $p['author'] ?? 'Unknown',
                 'description'  => $p['description'] ?? '',
                 'version'      => $p['latest_release_version_formatted'] ?? $p['latest_release_version'] ?? 'unknown',
                 'downloads'    => (int) ($p['downloads'] ?? 0),
                 'icon_url'     => $p['icon_url'] ?? null,
-                'url'          => isset($p['url']) ? self::BASE_URL . $p['url'] : null,
+                'url'          => $p['url'] ?? null,  // already absolute
                 'download_url' => $downloadUrl,
                 'file_name'    => basename($downloadUrl),
             ];
