@@ -4,7 +4,10 @@
 
             {{-- Node --}}
             <div class="flex items-center gap-3">
-                <span class="shrink-0 text-xl leading-none">{{ $this->getLocationEmoji() }}</span>
+                <x-filament::icon
+                    icon="tabler-server"
+                    class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500"
+                />
                 <div>
                     <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Node</p>
                     <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{{ $this->getNodeName() }}</p>
@@ -34,7 +37,7 @@
                     size="sm"
                     tooltip="Copy address"
                     x-on:click="
-                        navigator.clipboard.writeText(@js($this->getAddress()));
+                        navigator.clipboard.writeText('{{ e($this->getAddress()) }}');
                         $tooltip('Copied!', { theme: $store.theme, timeout: 2000 })
                     "
                 />
