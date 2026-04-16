@@ -5,6 +5,7 @@ namespace App\Filament\Server\Pages;
 use App\Enums\SubuserPermission;
 use App\Enums\TablerIcon;
 use App\Extensions\Plugins\PluginService;
+use App\Extensions\Plugins\PluginSourceInterface;
 use App\Extensions\Plugins\Sources\CurseForgeSource;
 use App\Models\InstalledPlugin;
 use App\Models\Server;
