@@ -207,10 +207,17 @@
                     // Skip the column-header row ("id  name  ping  connected  addr  owner")
                     if (/^\s*id\s+name/i.test(line)) return;
 
-                    // Player rows: "  12345   PlayerName   55   00:30:00  ..."
-                    const nameMatch = line.match(/^\s*\d+\s+(\S+)/);
-                    if (nameMatch) {
-                        playerListPlayers.push(nameMatch[1]);
+                    // Player rows: "  <id>  <"name">  <ping>  <H:MM:SS>  <addr>  <steamid64>  ..."
+                    // SteamID64 is always 17 digits starting with 76561
+                    const playerRowMatch = line.match(
+                        /^\s*\d+\s+(?:"([^"]*)"|(\S+))\s+\d+\s+([\d:]+)\s+\S+\s+(76561\d{12})/
+                    );
+                    if (playerRowMatch) {
+                        playerListPlayers.push({
+                            name:      playerRowMatch[1] || playerRowMatch[2],
+                            connected: playerRowMatch[3],
+                            steamId:   playerRowMatch[4],
+                        });
                         if (playerListPlayers.length >= playerListCount) {
                             flushPlayerList(true);
                         }
@@ -242,6 +249,32 @@
         });
         // ─────────────────────────────────────────────────────────────────────
 
+        // ── RCON moderation command execution ────────────────────────────────
+        let rconResponseLines = [];
+        let rconResponseLabel = '';
+        let rconResponseTimer = null;
+
+        const flushRconResponse = () => {
+            clearTimeout(rconResponseTimer);
+            rconResponseTimer = null;
+            Livewire.dispatch('rcon-command-response', {
+                label: rconResponseLabel,
+                response: rconResponseLines.join('\n').trim(),
+            });
+            rconResponseLines = [];
+            rconResponseLabel = '';
+        };
+
+        Livewire.on('execute-rcon-command', ({ command, label }) => {
+            if (playerListMode) return; // don't overlap with a player-list capture
+            rconResponseLines = [];
+            rconResponseLabel = label || 'Command sent';
+            clearTimeout(rconResponseTimer);
+            socket.send(JSON.stringify({ 'event': 'send command', 'args': [command] }));
+            rconResponseTimer = setTimeout(flushRconResponse, 1500);
+        });
+        // ─────────────────────────────────────────────────────────────────────
+
         socket.onmessage = function(websocketMessageEvent) {
             let { event, args } = JSON.parse(websocketMessageEvent.data);
 
@@ -250,6 +283,10 @@
                 case 'install output':
                     handleConsoleOutput(args[0]);
                     if (playerListMode) interceptPlayerListLine(args[0]);
+                    if (rconResponseTimer !== null) {
+                        const stripped = stripAnsi(args[0]).trim();
+                        if (stripped) rconResponseLines.push(stripped);
+                    }
                     break;
                 case 'feature match':
                     Livewire.dispatch('mount-feature', { data: args[0] });

@@ -4,6 +4,7 @@ namespace App\Filament\Server\Widgets;
 
 use App\Models\Server;
 use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
 use Filament\Widgets\Widget;
 use Livewire\Attributes\On;
 
@@ -70,6 +71,16 @@ class ServerPlayerList extends Widget
         $this->maxPlayers = $max;
         $this->available = $available;
         $this->loaded = true;
+    }
+
+    #[On('rcon-command-response')]
+    public function receiveRconResponse(string $label, string $response): void
+    {
+        Notification::make()
+            ->title($label)
+            ->body($response ?: 'Command sent.')
+            ->success()
+            ->send();
     }
 
     public static function canView(): bool
