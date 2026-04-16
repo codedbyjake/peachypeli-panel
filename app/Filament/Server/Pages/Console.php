@@ -171,6 +171,23 @@ class Console extends Page
     protected function getDefaultHeaderActions(): array
     {
         return [
+            Action::make('steam_connect')
+                ->label('Connect via Steam')
+                ->icon(TablerIcon::BrandSteam)
+                ->color('gray')
+                ->url(function () {
+                    /** @var Server $server */
+                    $server = Filament::getTenant();
+
+                    return 'steam://connect/' . ($server->allocation?->address ?? '');
+                })
+                ->size(Size::ExtraLarge)
+                ->visible(function () {
+                    /** @var Server $server */
+                    $server = Filament::getTenant();
+
+                    return !$this->isMinecraftServer($server);
+                }),
             ActionGroup::make([
                 Action::make('start')
                     ->label(trans('server/console.power_actions.start'))
@@ -217,6 +234,23 @@ class Console extends Page
                 })
                 ->buttonGroup(),
         ];
+    }
+
+    private function isMinecraftServer(Server $server): bool
+    {
+        $egg = $server->egg;
+        if (!$egg) {
+            return false;
+        }
+
+        $name     = strtolower($egg->name ?? '');
+        $features = array_map('strtolower', $egg->inherit_features ?? $egg->features ?? []);
+        $tags     = array_map('strtolower', $egg->tags ?? []);
+
+        return str_contains($name, 'minecraft')
+            || in_array('minecraft_java', $features)
+            || in_array('minecraft_bedrock', $features)
+            || in_array('minecraft', $tags);
     }
 
     public static function getNavigationLabel(): string

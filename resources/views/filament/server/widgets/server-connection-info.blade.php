@@ -26,35 +26,6 @@
                 </div>
             </div>
 
-            {{-- IP address + copy --}}
-            <div class="flex items-center gap-3">
-                <span class="select-all rounded-md bg-gray-100 px-3 py-1.5 font-mono text-sm font-semibold text-gray-900 dark:bg-gray-800 dark:text-gray-100">
-                    {{ $this->getAddress() }}
-                </span>
-                <x-filament::icon-button
-                    icon="tabler-copy"
-                    color="gray"
-                    size="sm"
-                    tooltip="Copy address"
-                    x-on:click="
-                        navigator.clipboard.writeText('{{ e($this->getAddress()) }}');
-                        $tooltip('Copied!', { theme: $store.theme, timeout: 2000 })
-                    "
-                />
-            </div>
-
-            {{-- Steam connect --}}
-            @unless($this->isMinecraft())
-                <x-filament::button
-                    tag="a"
-                    :href="$this->getSteamConnectUrl()"
-                    icon="tabler-brand-steam"
-                    color="primary"
-                    size="sm"
-                >
-                    Connect via Steam
-                </x-filament::button>
-            @endunless
 
         </div>
     </x-filament::section>
