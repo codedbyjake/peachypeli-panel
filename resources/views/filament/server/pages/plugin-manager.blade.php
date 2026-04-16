@@ -104,19 +104,12 @@
                     </div>
 
                 @else
-                    {{--
-                        Plugin grid — uniform square cards.
-                        Each card is flex-col so the footer (button) can be pushed to the
-                        bottom with mt-auto regardless of how much content is above it.
-                        Cards within each grid row are equal height because CSS grid stretches
-                        items to fill the row's height by default.
-                    --}}
-                    <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    <div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                         @foreach ($this->results as $plugin)
                             @php
-                                $pluginId        = $plugin['id'] ?? '';
+                                $pluginId         = $plugin['id'] ?? '';
                                 $alreadyInstalled = $this->isInstalled($pluginId);
-                                $isInstalling    = $this->installingId === $pluginId;
+                                $isInstalling     = $this->installingId === $pluginId;
 
                                 $dl    = $plugin['downloads'] ?? 0;
                                 $dlFmt = $dl >= 1_000_000
@@ -128,17 +121,17 @@
 
                             <div class="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
 
-                                {{-- Thumbnail area — fixed height, image centred --}}
-                                <div class="flex h-28 shrink-0 items-center justify-center bg-gray-50 dark:bg-gray-800/50">
+                                {{-- Thumbnail — fixed height, image centred and size-constrained --}}
+                                <div class="flex h-24 shrink-0 items-center justify-center bg-gray-50 dark:bg-gray-800/50 px-4">
                                     @if ($plugin['icon_url'] ?? null)
                                         <img
                                             src="{{ $plugin['icon_url'] }}"
                                             alt=""
-                                            class="h-16 w-16 rounded-xl object-cover shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10"
+                                            class="max-h-12 w-auto rounded-lg object-cover shadow-sm ring-1 ring-gray-950/5 dark:ring-white/10"
                                         >
                                     @else
-                                        <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-200 dark:bg-gray-700">
-                                            <x-filament::icon icon="tabler-puzzle" class="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                                        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-700">
+                                            <x-filament::icon icon="tabler-puzzle" class="h-6 w-6 text-gray-400 dark:text-gray-500" />
                                         </div>
                                     @endif
                                 </div>
@@ -146,28 +139,25 @@
                                 {{-- Card body --}}
                                 <div class="flex flex-1 flex-col p-3">
 
-                                    {{-- Name --}}
                                     <p class="truncate text-sm font-semibold leading-snug text-gray-900 dark:text-white">
                                         {{ $plugin['name'] }}
                                     </p>
 
-                                    {{-- Author --}}
                                     <p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
                                         by {{ $plugin['author'] ?? 'Unknown' }}
                                     </p>
 
-                                    {{-- Description — one line only so cards stay uniform --}}
                                     @if ($plugin['description'] ?? null)
-                                        <p class="mt-1.5 line-clamp-1 text-xs leading-relaxed text-gray-400 dark:text-gray-500">
+                                        <p class="mt-1.5 line-clamp-2 text-xs leading-relaxed text-gray-400 dark:text-gray-500">
                                             {{ $plugin['description'] }}
                                         </p>
                                     @endif
 
-                                    {{-- Push footer to bottom --}}
+                                    {{-- Footer pushed to bottom --}}
                                     <div class="mt-auto pt-3">
 
                                         {{-- Meta row: version · downloads · external link --}}
-                                        <div class="mb-2.5 flex items-center gap-1.5 text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                                        <div class="mb-2 flex items-center gap-1.5 text-xs tabular-nums text-gray-400 dark:text-gray-500">
                                             @if (($plugin['version'] ?? null) && $plugin['version'] !== 'Latest')
                                                 <span class="truncate">{{ $plugin['version'] }}</span>
                                                 <span class="shrink-0 text-gray-200 dark:text-gray-700">&middot;</span>
@@ -186,30 +176,24 @@
                                             @endif
                                         </div>
 
-                                        {{-- Install / Installed button — full width --}}
                                         @if ($alreadyInstalled)
                                             <div class="flex w-full items-center justify-center gap-1.5 rounded-lg border border-success-200 bg-success-50 py-1.5 text-xs font-medium text-success-700 dark:border-success-800/50 dark:bg-success-900/20 dark:text-success-400">
                                                 <x-filament::icon icon="tabler-circle-check" class="h-3.5 w-3.5 shrink-0" />
                                                 Installed
                                             </div>
                                         @else
-                                            {{--
-                                                wire:click uses single-quoted PHP interpolation — NOT @js().
-                                                @js() emits double-quoted strings that terminate the outer
-                                                HTML attribute, silently breaking the Livewire call.
-                                            --}}
                                             <button
                                                 wire:click="install('{{ e($pluginId) }}')"
                                                 wire:loading.attr="disabled"
                                                 wire:target="install"
                                                 @disabled((bool) $this->installingId)
-                                                class="fi-btn fi-btn-size-sm fi-color-primary fi-btn-color-primary w-full justify-center rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:opacity-60 dark:bg-primary-500 dark:hover:bg-primary-400"
+                                                class="flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-500 disabled:opacity-60 dark:bg-primary-500 dark:hover:bg-primary-400"
                                             >
                                                 <x-filament::icon
                                                     :icon="$isInstalling ? 'tabler-loader' : 'tabler-download'"
                                                     class="h-3.5 w-3.5 shrink-0 {{ $isInstalling ? 'animate-spin' : '' }}"
                                                 />
-                                                <span>{{ $isInstalling ? 'Installing…' : 'Install' }}</span>
+                                                {{ $isInstalling ? 'Installing…' : 'Install' }}
                                             </button>
                                         @endif
 
