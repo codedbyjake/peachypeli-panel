@@ -5,7 +5,6 @@ namespace App\Filament\Server\Pages;
 use App\Enums\SubuserPermission;
 use App\Enums\TablerIcon;
 use App\Extensions\Plugins\PluginService;
-use App\Extensions\Plugins\PluginSourceInterface;
 use App\Extensions\Plugins\Sources\CurseForgeSource;
 use App\Models\InstalledPlugin;
 use App\Models\Server;
@@ -36,17 +35,10 @@ class PluginManager extends Page
     /** @var array<int, array<string, mixed>> */
     public array $results = [];
 
-    public bool $isLoading = false;
-
-    public bool $isInstalling = false;
-
-    /** Plugin currently being installed (by id), to show spinner. */
+    /** ID of the plugin currently being installed — used to show per-card loading state. */
     public ?string $installingId = null;
 
     public string $activeTab = 'browse';
-
-    /** @var array<string, mixed>|null */
-    public ?array $selectedPlugin = null;
 
     public string $gameType = 'unknown';
 
@@ -57,8 +49,6 @@ class PluginManager extends Page
     public bool $needsCurseForgeKey = false;
 
     protected PluginService $pluginService;
-
-    protected ?PluginSourceInterface $source = null;
 
     public function boot(PluginService $pluginService): void
     {
@@ -117,18 +107,34 @@ class PluginManager extends Page
         }
     }
 
-    public function install(string $pluginId, ?string $downloadUrl, string $installDir, string $fileName, string $pluginName, string $version): void
+    public function install(string $pluginId): void
     {
+        // Look up the full plugin data from the current results — avoids passing URLs
+        // through HTML attributes, which breaks due to @js() producing double-quoted strings.
+        $plugin = collect($this->results)->firstWhere('id', $pluginId);
+
+        if (!$plugin) {
+            Notification::make()->danger()->title('Plugin not found. Try refreshing the page.')->send();
+
+            return;
+        }
+
         $this->installingId = $pluginId;
 
         try {
-            // For sources with lazy download URL resolution (e.g. Modrinth), fetch it now.
+            $source     = $this->pluginService->resolveSource($this->server);
+            $installDir = $source?->getInstallDir() ?? '/plugins';
+            $pluginName = $plugin['name'] ?? $pluginId;
+            $version    = $plugin['version'] ?? 'unknown';
+            $fileName   = $plugin['file_name'] ?? null;
+            $downloadUrl = $plugin['download_url'] ?? null;
+
+            // Sources that resolve the download URL lazily (e.g. Modrinth): fetch it now.
             if (!$downloadUrl) {
-                $source      = $this->pluginService->resolveSource($this->server);
                 $versionInfo = $source?->getLatestVersion($pluginId);
 
-                if (!$versionInfo || !($versionInfo['download_url'] ?? null)) {
-                    Notification::make()->danger()->title('Could not resolve download URL.')->send();
+                if (!$versionInfo || empty($versionInfo['download_url'])) {
+                    Notification::make()->danger()->title("Could not resolve download URL for '{$pluginName}'.")->send();
 
                     return;
                 }
@@ -138,21 +144,24 @@ class PluginManager extends Page
                 $version     = $versionInfo['version'] ?? $version;
             }
 
-            $source = $this->pluginService->resolveSource($this->server);
+            // Ensure we always have a filename — derive from the URL if nothing else.
+            if (!$fileName) {
+                $fileName = basename(parse_url($downloadUrl, PHP_URL_PATH) ?? $pluginId);
+            }
 
             /** @var DaemonFileRepository $fileRepo */
             $fileRepo = (new DaemonFileRepository())->setServer($this->server);
 
-            // Pull file from URL directly to the server.
-            $fileRepo->pull($downloadUrl, $installDir, ['filename' => $fileName]);
+            // Pull the file directly to the server. foreground=true makes Wings wait until
+            // the download is complete before responding, so we know it succeeded.
+            $fileRepo->pull($downloadUrl, $installDir, ['filename' => $fileName, 'foreground' => true]);
 
-            // If the source delivers a zip archive (e.g. Thunderstore), decompress it.
+            // Thunderstore packages are zip archives — extract then remove the zip.
             if ($source?->isArchive()) {
                 $fileRepo->decompressFile($installDir, $fileName);
                 $fileRepo->deleteFiles($installDir, [$fileName]);
             }
 
-            // Persist record.
             InstalledPlugin::create([
                 'server_id'   => $this->server->id,
                 'source'      => $source?->getSlug() ?? 'unknown',
@@ -167,6 +176,11 @@ class PluginManager extends Page
 
             Notification::make()->success()->title("'{$pluginName}' installed successfully.")->send();
         } catch (Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Plugin install failed', [
+                'server_id' => $this->server->id,
+                'plugin_id' => $pluginId,
+                'error'     => $e->getMessage(),
+            ]);
             Notification::make()->danger()->title('Install failed')->body($e->getMessage())->send();
         } finally {
             $this->installingId = null;
@@ -245,22 +259,6 @@ class PluginManager extends Page
         } catch (Exception $e) {
             Notification::make()->danger()->title('Update failed')->body($e->getMessage())->send();
         }
-    }
-
-    public function selectPlugin(string $pluginId): void
-    {
-        foreach ($this->results as $result) {
-            if (($result['id'] ?? null) === $pluginId) {
-                $this->selectedPlugin = $result;
-
-                return;
-            }
-        }
-    }
-
-    public function clearSelectedPlugin(): void
-    {
-        $this->selectedPlugin = null;
     }
 
     public function setTab(string $tab): void
