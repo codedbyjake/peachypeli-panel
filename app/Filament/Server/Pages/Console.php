@@ -172,16 +172,13 @@ class Console extends Page
     {
         return [
             Action::make('steam_connect')
-                ->label('Connect via Steam')
-                ->icon(TablerIcon::BrandSteam)
-                ->color('gray')
+                ->view('filament.actions.steam-connect')
                 ->url(function () {
                     /** @var Server $server */
                     $server = Filament::getTenant();
 
                     return 'steam://connect/' . ($server->allocation?->address ?? '');
                 })
-                ->size(Size::ExtraLarge)
                 ->visible(function () {
                     /** @var Server $server */
                     $server = Filament::getTenant();
