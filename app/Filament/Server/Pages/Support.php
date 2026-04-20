@@ -82,8 +82,8 @@ class Support extends Page
 
             $this->tickets     = $this->whmcs->getTickets($this->whmcsClientId);
             $this->departments = $this->whmcs->getDepartments();
-        } catch (\Exception $e) {
-            $this->error = $e->getMessage();
+        } catch (\Exception) {
+            $this->error = trans('server/support.unavailable');
         } finally {
             $this->loading = false;
         }
