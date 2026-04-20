@@ -361,15 +361,19 @@ class Support extends Page
                     'Key'         => $key,
                     'Body'        => fopen($file->getRealPath(), 'r'),
                     'ContentType' => $file->getMimeType() ?? 'application/octet-stream',
-                    'ACL'         => 'public-read',
                 ]);
 
-                $url = $this->buildS3Url($cfg, $bucket, $key);
+                // Backblaze B2 does not support canned ACLs — use a pre-signed URL instead
+                $presigned = $client->createPresignedRequest(
+                    $client->getCommand('GetObject', ['Bucket' => $bucket, 'Key' => $key]),
+                    '+7 days'
+                );
+                $url = (string) $presigned->getUri();
 
                 Log::info("WHMCS Support uploadToS3: file {$i} uploaded", [
-                    'key'          => $key,
-                    'etag'         => $result['ETag'] ?? 'n/a',
-                    'generated_url' => $url,
+                    'key'           => $key,
+                    'etag'          => $result['ETag'] ?? 'n/a',
+                    'presigned_url' => $url,
                 ]);
 
                 $urls[] = $url;
@@ -383,26 +387,6 @@ class Support extends Page
         }
 
         return $urls;
-    }
-
-    /**
-     * Build the public URL for an S3 object.
-     *
-     * @param  array<string, mixed>  $cfg
-     */
-    private function buildS3Url(array $cfg, string $bucket, string $key): string
-    {
-        if (!empty($cfg['endpoint'])) {
-            $base = rtrim($cfg['endpoint'], '/');
-
-            return !empty($cfg['use_path_style_endpoint'])
-                ? "{$base}/{$bucket}/{$key}"
-                : "{$base}/{$key}";
-        }
-
-        $region = $cfg['region'] ?? 'us-east-1';
-
-        return "https://{$bucket}.s3.{$region}.amazonaws.com/{$key}";
     }
 
     /**
