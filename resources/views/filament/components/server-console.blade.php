@@ -37,7 +37,7 @@
             <div id="terminal" wire:ignore style="flex:1;min-height:0;overflow:hidden;"></div>
 
             @if ($this->authorizeSendCommand())
-                <div class="flex items-center gap-3 w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-white/10">
+                <div class="flex items-center gap-3 w-full py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-white/10" style="padding-left:10px;padding-right:10px;">
                     <x-filament::icon
                         icon="tabler-chevrons-right"
                         class="h-4 w-4 shrink-0 text-primary-500 dark:text-primary-400"
