@@ -412,6 +412,7 @@
         let playerListFoundHeader = false;
         let playerListTimeout = null;
         let playerListCountless = false; // games that don't emit a total count header
+        let playerListRawLines = [];     // debug: every stripped line captured during an active request
 
         const stripAnsi = (str) => str
             .replace(/\x1b\[[\d;]*[A-Za-z]/g, '')  // ANSI escape sequences
@@ -436,6 +437,7 @@
         const interceptPlayerListLine = (rawLine) => {
             const line = stripAnsi(rawLine).trim();
             if (!line) return;
+            if (playerListMode) playerListRawLines.push(line);
 
             if (playerListMode === 'minecraft') {
                 // "There are X of a max of Y players online: Name1, Name2"
@@ -463,17 +465,22 @@
                 }
 
             } else if (playerListMode === 'ark') {
-                // "No Players Connected" → zero players, still available
-                if (/^no players connected/i.test(line)) {
+                console.log('[ARK playerlist]', JSON.stringify(line));
+
+                // "No Players Connected" and common variants → 0 players, still available
+                if (/^no (?:players? connected|connected players?)/i.test(line) ||
+                    /^0 players? online/i.test(line)) {
                     playerListFoundHeader = true;
                     flushPlayerList(true);
                     return;
                 }
-                // "0. PlayerName, 76561198012345678"
-                const arkMatch = line.match(/^\d+\.\s+(.+),\s+(76561\d{12})\s*$/);
+
+                // "0. PlayerName, SteamID64" (ASE) or "0. PlayerName, EOSID" (ASA)
+                // Accept any non-whitespace sequence as the ID — don't restrict to SteamID64
+                const arkMatch = line.match(/^\d+\.\s+(.+?),\s*(\S+)\s*$/);
                 if (arkMatch) {
                     playerListFoundHeader = true;
-                    playerListPlayers.push({ name: arkMatch[1].trim(), steamId: arkMatch[2] });
+                    playerListPlayers.push({ name: arkMatch[1].trim(), steamId: arkMatch[2].trim() });
                 }
 
             } else if (playerListMode === 'valheim') {
@@ -563,6 +570,7 @@
             playerListMax          = 0;
             playerListFoundHeader  = false;
             playerListCountless    = ['ark', 'valheim', 'palworld', 'fivem'].includes(gameType);
+            playerListRawLines     = [];
 
             const commands = {
                 minecraft: 'list',
@@ -582,6 +590,16 @@
 
             // For countless games flush with available=true if a header or any players were seen.
             playerListTimeout = setTimeout(() => {
+                // If ARK returned output but nothing parsed, show a debug notification so the
+                // raw lines are visible and the regex can be adjusted accordingly.
+                if (playerListMode === 'ark' && playerListRawLines.length > 0 && playerListPlayers.length === 0 && !playerListFoundHeader) {
+                    const preview = playerListRawLines.slice(0, 10).join('\n');
+                    console.warn('[ARK playerlist] No players parsed from output:\n' + preview);
+                    Livewire.dispatch('rcon-command-response', {
+                        label: 'ARK Player List — Debug (no players parsed)',
+                        response: preview,
+                    });
+                }
                 flushPlayerList(playerListCountless
                     ? (playerListFoundHeader || playerListPlayers.length > 0)
                     : false
