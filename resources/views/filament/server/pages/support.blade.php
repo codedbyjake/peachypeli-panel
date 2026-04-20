@@ -202,7 +202,7 @@
                                 @endif
                             </div>
                             <div class="rounded-xl rounded-tl-none bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-                                {!! nl2br(e(strip_tags($this->ticket['message']))) !!}
+                                {!! $this->linkify($this->ticket['message'] ?? '') !!}
                             </div>
                             @php
                                 $raw = $this->ticket['attachments']['attachment'] ?? [];
@@ -261,7 +261,7 @@
                                 @endif
                             </div>
                             <div class="rounded-xl {{ $isAdmin ? 'rounded-tl-none bg-gray-100 dark:bg-gray-800' : 'rounded-tr-none bg-primary-50 dark:bg-primary-900/20' }} px-4 py-3 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-                                {!! nl2br(e(strip_tags($reply['message'] ?? ''))) !!}
+                                {!! $this->linkify($reply['message'] ?? '') !!}
                             </div>
                             @php
                                 $rawReply = $reply['attachments']['attachment'] ?? [];

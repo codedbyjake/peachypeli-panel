@@ -5,10 +5,13 @@ namespace App\Filament\Server\Pages;
 use App\Enums\TablerIcon;
 use App\Models\Server;
 use App\Services\Whmcs\WhmcsService;
+use Aws\S3\S3Client;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Livewire\WithFileUploads;
 
 class Support extends Page
@@ -126,24 +129,20 @@ class Support extends Page
     public function submitReply(): void
     {
         $this->validate([
-            'replyMessage'      => 'required|min:5',
-            'replyAttachments'  => 'nullable|array',
-            'replyAttachments.*'=> 'file|max:10240',
+            'replyMessage'       => 'required|min:5',
+            'replyAttachments'   => 'nullable|array',
+            'replyAttachments.*' => 'file|max:10240',
         ]);
 
         try {
-            $attachments = $this->whmcs->encodeAttachments($this->replyAttachments);
+            $ticketId = (int) $this->ticket['ticketid'];
+            $message  = $this->appendS3Links($this->replyMessage, $this->replyAttachments, "support-attachments/{$ticketId}");
 
-            $this->whmcs->addReply(
-                (int) $this->ticket['ticketid'],
-                $this->whmcsClientId,
-                $this->replyMessage,
-                $attachments,
-            );
+            $this->whmcs->addReply($ticketId, $this->whmcsClientId, $message);
 
             $this->replyMessage     = '';
             $this->replyAttachments = [];
-            $this->ticket           = $this->whmcs->getTicket((int) $this->ticket['ticketid']);
+            $this->ticket           = $this->whmcs->getTicket($ticketId);
 
             Notification::make()->title(trans('server/support.reply_submitted'))->success()->send();
         } catch (\Exception $e) {
@@ -164,8 +163,10 @@ class Support extends Page
         ]);
 
         try {
-            $user        = user();
-            $attachments = $this->whmcs->encodeAttachments($this->newAttachments);
+            $user    = user();
+            // Use a UUID folder since we don't have a ticket ID yet
+            $folder  = 'support-attachments/' . Str::uuid();
+            $message = $this->appendS3Links($this->newMessage, $this->newAttachments, $folder);
 
             $this->whmcs->openTicket(
                 $this->whmcsClientId,
@@ -173,9 +174,8 @@ class Support extends Page
                 $user?->email ?? '',
                 (int) $this->newDeptId,
                 $this->newSubject,
-                $this->newMessage,
+                $message,
                 $this->newPriority,
-                $attachments,
             );
         } catch (\Exception $e) {
             Log::error('WHMCS Support submitNewTicket error: ' . $e->getMessage());
@@ -183,7 +183,6 @@ class Support extends Page
             return;
         }
 
-        // Ticket created — reset form and switch to list before refreshing
         $this->newSubject     = '';
         $this->newDeptId      = '';
         $this->newMessage     = '';
@@ -193,12 +192,137 @@ class Support extends Page
 
         Notification::make()->title(trans('server/support.ticket_submitted'))->success()->send();
 
-        // Refresh ticket list so the newly created ticket appears immediately
         try {
             $this->tickets = $this->whmcs->getTickets($this->whmcsClientId);
         } catch (\Exception $e) {
             Log::error('WHMCS Support ticket list refresh error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Upload each file to S3, then return the original message with S3 URLs appended.
+     *
+     * @param  array<int, UploadedFile>  $files
+     */
+    private function appendS3Links(string $message, array $files, string $folder): string
+    {
+        if (empty($files)) {
+            return $message;
+        }
+
+        $urls = $this->uploadToS3($files, $folder);
+
+        if (empty($urls)) {
+            return $message;
+        }
+
+        $links = implode("\n", array_map(fn($url) => "📎 {$url}", $urls));
+
+        return $message . "\n\n--- Attachments ---\n" . $links;
+    }
+
+    /**
+     * Upload files to S3 using the existing backup S3 credentials.
+     * Returns an array of public URLs.
+     *
+     * @param  array<int, UploadedFile>  $files
+     * @return array<int, string>
+     */
+    private function uploadToS3(array $files, string $folder): array
+    {
+        $cfg = config('backups.disks.s3');
+
+        if (empty($cfg['key']) || empty($cfg['secret']) || empty($cfg['bucket'])) {
+            Log::warning('WHMCS Support: S3 not configured for attachment uploads');
+            return [];
+        }
+
+        $clientConfig = [
+            'version'     => 'latest',
+            'region'      => $cfg['region'] ?? 'us-east-1',
+            'credentials' => [
+                'key'    => $cfg['key'],
+                'secret' => $cfg['secret'],
+            ],
+        ];
+
+        if (!empty($cfg['endpoint'])) {
+            $clientConfig['endpoint'] = $cfg['endpoint'];
+        }
+
+        if (!empty($cfg['use_path_style_endpoint'])) {
+            $clientConfig['use_path_style_endpoint'] = (bool) $cfg['use_path_style_endpoint'];
+        }
+
+        $client = new S3Client($clientConfig);
+        $bucket = $cfg['bucket'];
+        $urls   = [];
+
+        foreach ($files as $file) {
+            if (!$file instanceof UploadedFile) {
+                continue;
+            }
+
+            $filename = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
+                . '.' . $file->getClientOriginalExtension();
+            $key = trim($folder, '/') . '/' . $filename;
+
+            try {
+                $client->putObject([
+                    'Bucket'      => $bucket,
+                    'Key'         => $key,
+                    'Body'        => fopen($file->getRealPath(), 'r'),
+                    'ContentType' => $file->getMimeType() ?? 'application/octet-stream',
+                    'ACL'         => 'public-read',
+                ]);
+
+                $urls[] = $this->buildS3Url($cfg, $bucket, $key);
+            } catch (\Exception $e) {
+                Log::error('WHMCS Support S3 upload failed: ' . $e->getMessage(), ['key' => $key]);
+            }
+        }
+
+        return $urls;
+    }
+
+    /**
+     * Build the public URL for an S3 object.
+     *
+     * @param  array<string, mixed>  $cfg
+     */
+    private function buildS3Url(array $cfg, string $bucket, string $key): string
+    {
+        if (!empty($cfg['endpoint'])) {
+            $base = rtrim($cfg['endpoint'], '/');
+
+            return !empty($cfg['use_path_style_endpoint'])
+                ? "{$base}/{$bucket}/{$key}"
+                : "{$base}/{$key}";
+        }
+
+        $region = $cfg['region'] ?? 'us-east-1';
+
+        return "https://{$bucket}.s3.{$region}.amazonaws.com/{$key}";
+    }
+
+    /**
+     * Escape a message body and linkify any URLs for safe HTML rendering.
+     */
+    public function linkify(string $text): string
+    {
+        $escaped = nl2br(e(strip_tags($text)));
+
+        return preg_replace_callback(
+            '/(https?:\/\/[^\s<>"&]+(?:&amp;[^\s<>"]+)*)/i',
+            function (array $m): string {
+                $href    = htmlspecialchars_decode($m[1]);
+                $display = $m[1];
+                return '<a href="' . e($href) . '" target="_blank" rel="noopener" '
+                    . 'style="color:var(--primary-600);text-decoration:underline;">'
+                    . $display . '</a>';
+            },
+            $escaped,
+        ) ?? $escaped;
     }
 
     public function backToList(): void

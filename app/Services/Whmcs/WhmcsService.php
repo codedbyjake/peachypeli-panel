@@ -2,7 +2,6 @@
 
 namespace App\Services\Whmcs;
 
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -56,29 +55,6 @@ class WhmcsService
         return $data;
     }
 
-    /**
-     * Encode an array of UploadedFile objects into the JSON string WHMCS expects.
-     *
-     * @param  array<int, UploadedFile>  $files
-     */
-    public function encodeAttachments(array $files): string
-    {
-        $encoded = [];
-
-        foreach ($files as $file) {
-            if (!$file instanceof UploadedFile) {
-                continue;
-            }
-
-            $encoded[] = [
-                'name' => $file->getClientOriginalName(),
-                'data' => base64_encode((string) file_get_contents($file->getRealPath())),
-            ];
-        }
-
-        return empty($encoded) ? '' : json_encode($encoded);
-    }
-
     public function getClientId(string $email): ?int
     {
         $data    = $this->call('GetClients', ['search' => $email, 'limitnum' => 1]);
@@ -99,7 +75,6 @@ class WhmcsService
     {
         Log::info('WHMCS getTickets called', ['clientId' => $clientId]);
 
-        // Fetch with clientid filter first
         $data    = $this->call('GetTickets', ['clientid' => $clientId, 'limitnum' => 100]);
         $tickets = $data['tickets']['ticket'] ?? [];
 
@@ -111,7 +86,6 @@ class WhmcsService
 
         $normalised = isset($tickets[0]) ? $tickets : ($tickets ? [$tickets] : []);
 
-        // If no results, try without clientid to check if tickets exist at all
         if (empty($normalised)) {
             $allData    = $this->call('GetTickets', ['limitnum' => 25]);
             $allTickets = $allData['tickets']['ticket'] ?? [];
@@ -131,8 +105,8 @@ class WhmcsService
         $data = $this->call('GetTicket', ['ticketid' => $ticketId]);
 
         Log::info('WHMCS GetTicket attachments', [
-            'ticket_attachments' => $data['attachments'] ?? 'none',
-            'first_reply_attachments' => $data['replies']['reply'][0]['attachments']
+            'ticket_attachments'       => $data['attachments'] ?? 'none',
+            'first_reply_attachments'  => $data['replies']['reply'][0]['attachments']
                 ?? ($data['replies']['reply']['attachments'] ?? 'none'),
         ]);
 
@@ -156,9 +130,8 @@ class WhmcsService
         string $subject,
         string $message,
         string $priority = 'Medium',
-        string $attachments = '',
     ): void {
-        $params = [
+        $this->call('OpenTicket', [
             'clientid' => $clientId,
             'name'     => $name,
             'email'    => $email,
@@ -166,27 +139,15 @@ class WhmcsService
             'subject'  => $subject,
             'message'  => $message,
             'priority' => $priority,
-        ];
-
-        if ($attachments !== '') {
-            $params['attachments'] = $attachments;
-        }
-
-        $this->call('OpenTicket', $params);
+        ]);
     }
 
-    public function addReply(int $ticketId, int $clientId, string $message, string $attachments = ''): void
+    public function addReply(int $ticketId, int $clientId, string $message): void
     {
-        $params = [
+        $this->call('AddTicketReply', [
             'ticketid' => $ticketId,
             'clientid' => $clientId,
             'message'  => $message,
-        ];
-
-        if ($attachments !== '') {
-            $params['attachments'] = $attachments;
-        }
-
-        $this->call('AddTicketReply', $params);
+        ]);
     }
 }
