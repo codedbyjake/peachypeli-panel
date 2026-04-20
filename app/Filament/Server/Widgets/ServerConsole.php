@@ -206,7 +206,7 @@ class ServerConsole extends Widget
 
         $apiKey = config('services.rustmaps.key');
         if ($apiKey) {
-            $cacheKey = "rustmap.v4.{$size}.{$seed}";
+            $cacheKey = "rustmap.v4d.{$size}.{$seed}";
             $data     = cache()->remember($cacheKey, now()->addHours(24), function () use ($seed, $size, $apiKey) {
                 $response = Http::withHeaders(['X-API-Key' => $apiKey])
                     ->timeout(8)
@@ -214,12 +214,13 @@ class ServerConsole extends Widget
                         'staging' => false,
                     ]);
 
-                if (!$response->ok()) {
-                    \Illuminate\Support\Facades\Log::warning('Rustmaps API error', [
-                        'status' => $response->status(),
-                        'body'   => $response->body(),
-                    ]);
+                \Illuminate\Support\Facades\Log::info('Rustmaps API raw response', [
+                    'status'  => $response->status(),
+                    'headers' => $response->headers(),
+                    'body'    => $response->body(),
+                ]);
 
+                if (!$response->ok()) {
                     return null;
                 }
 
