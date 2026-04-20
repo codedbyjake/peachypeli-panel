@@ -27,13 +27,13 @@
     <div
         x-data="{ panelVisible: true }"
         @collapse-game-panel.window="panelVisible = false"
-        style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start"
-        :style="panelVisible ? 'display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start' : ''"
+        style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:stretch"
+        :style="panelVisible ? 'display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:stretch' : ''"
     >
     @endif
 
         {{-- ── Console (left column) ── --}}
-        <div>
+        <div style="height:100%">
             <div id="terminal" wire:ignore></div>
 
             @if ($this->authorizeSendCommand())
@@ -75,11 +75,11 @@
                 .rm-pin:hover .rm-tip { display: block !important; }
             </style>
 
-            <div class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden">
+            <div class="rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 overflow-hidden" style="height:100%;display:flex;flex-direction:column;">
 
                 {{-- Header --}}
-                <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
-                    <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">World Map</span>
+                <div class="px-6 py-4 bg-white dark:bg-gray-900 border-b border-gray-950/5 dark:border-white/10 flex items-center justify-between gap-2">
+                    <span class="text-sm font-semibold text-gray-950 dark:text-white">World Map</span>
                     @if ($panelData['seed'] ?? '')
                         <span class="text-xs text-gray-400 dark:text-gray-500 tabular-nums shrink-0">
                             Seed: {{ $panelData['seed'] }} - Size: {{ $panelData['size'] }}
@@ -123,7 +123,7 @@
                     </div>
 
                     {{-- Legend & stats --}}
-                    <div style="padding:12px 16px; border-top:1px solid rgb(229,231,235); background:rgba(249,250,251,0.8);" class="dark:border-gray-700 dark:bg-gray-800/60 space-y-2">
+                    <div class="px-6 py-4 bg-white dark:bg-gray-900 border-t border-gray-950/5 dark:border-white/10 space-y-2" style="margin-top:auto;">
 
                         {{-- Tier legend --}}
                         @if (!empty($rustMonuments))
@@ -158,7 +158,7 @@
                             @php
                                 $biomeNames = ['s' => 'Snow', 'd' => 'Desert', 'f' => 'Forest', 't' => 'Temperate', 'j' => 'Arid'];
                             @endphp
-                            <div style="padding-top:6px; border-top:1px solid rgb(229,231,235); display:flex; flex-wrap:wrap; gap:4px 12px;" class="dark:border-gray-700">
+                            <div class="border-t border-gray-950/5 dark:border-white/10" style="padding-top:6px; display:flex; flex-wrap:wrap; gap:4px 12px;">
                                 @foreach ($rustStats['biomes'] as $biome => $pct)
                                     @php $biomeName = $biomeNames[strtolower($biome)] ?? ucfirst(strtolower($biome)); @endphp
                                     <div style="display:flex; align-items:center; gap:4px;">
@@ -197,9 +197,9 @@
 
             @elseif ($panelType === 'ark')
             {{-- ── ARK: static map image ── --}}
-            <div class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden">
-                <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                    <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Map</span>
+            <div class="rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 overflow-hidden" style="height:100%;display:flex;flex-direction:column;">
+                <div class="px-6 py-4 bg-white dark:bg-gray-900 border-b border-gray-950/5 dark:border-white/10">
+                    <span class="text-sm font-semibold text-gray-950 dark:text-white">Map</span>
                 </div>
 
                 @if ($panelData['image'] ?? null)
@@ -259,7 +259,7 @@
             >
                 {{-- Loading state --}}
                 <template x-if="!loaded && !failed">
-                    <div class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 p-5 flex items-center justify-center gap-2">
+                    <div class="rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 p-5 flex items-center justify-center gap-2">
                         <x-filament::loading-indicator class="h-4 w-4 text-gray-400" />
                         <span class="text-sm text-gray-400">Loading server info&hellip;</span>
                     </div>
@@ -267,9 +267,9 @@
 
                 {{-- Icon loaded --}}
                 <template x-if="loaded">
-                    <div class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden">
-                        <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                            <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Server Info</span>
+                    <div class="rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 overflow-hidden">
+                        <div class="px-6 py-4 bg-white dark:bg-gray-900 border-b border-gray-950/5 dark:border-white/10">
+                            <span class="text-sm font-semibold text-gray-950 dark:text-white">Server Info</span>
                         </div>
                         <div class="p-5 flex flex-col items-center gap-3 text-center">
                             <img
