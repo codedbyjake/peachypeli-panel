@@ -257,6 +257,7 @@ class ServerConsole extends Widget
                 'mountains'       => $payload['mountains'] ?? 0,
                 'biomes'          => $bp ? array_filter((array) $bp, fn ($v) => $v > 0) : [],
             ];
+            }
         }
 
         return compact('seed', 'size', 'imageUrl', 'pageUrl', 'monuments', 'stats');
