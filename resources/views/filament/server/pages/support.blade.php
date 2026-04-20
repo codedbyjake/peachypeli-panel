@@ -205,25 +205,25 @@
                                 {!! nl2br(e(strip_tags($this->ticket['message']))) !!}
                             </div>
                             @php
-                                $openingAttachments = $this->ticket['attachments']['attachment'] ?? [];
-                                if (!empty($openingAttachments) && isset($openingAttachments['filename'])) {
-                                    $openingAttachments = [$openingAttachments];
-                                }
+                                $raw = $this->ticket['attachments']['attachment'] ?? [];
+                                // Normalise single attachment (assoc) to a list
+                                $openingAttachments = isset($raw['filename']) ? [$raw] : (array) $raw;
+                                // Only keep entries that have a real HTTP URL
+                                $openingAttachments = array_filter($openingAttachments, fn($a) =>
+                                    is_array($a) &&
+                                    !empty($a['filename']) &&
+                                    !empty($a['url']) &&
+                                    str_starts_with($a['url'], 'http')
+                                );
                             @endphp
                             @if (!empty($openingAttachments))
                                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
                                     @foreach ($openingAttachments as $att)
-                                        <a
-                                            href="{{ $att['url'] ?? '#' }}"
-                                            target="_blank"
-                                            rel="noopener"
+                                        <a href="{{ $att['url'] }}" target="_blank" rel="noopener"
                                             style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid var(--gray-200);font-size:0.75rem;color:var(--gray-600);text-decoration:none;background:var(--white,#fff);"
                                             onmouseover="this.style.background='var(--gray-50)'"
                                             onmouseout="this.style.background='var(--white,#fff)'"
-                                        >
-                                            <x-filament::icon icon="tabler-paperclip" style="width:0.875rem;height:0.875rem;" />
-                                            {{ $att['filename'] ?? 'Attachment' }}
-                                        </a>
+                                        ><x-filament::icon icon="tabler-paperclip" style="width:0.875rem;height:0.875rem;" />{{ $att['filename'] }}</a>
                                     @endforeach
                                 </div>
                             @endif
@@ -264,25 +264,25 @@
                                 {!! nl2br(e(strip_tags($reply['message'] ?? ''))) !!}
                             </div>
                             @php
-                                $replyAtts = $reply['attachments']['attachment'] ?? [];
-                                if (!empty($replyAtts) && isset($replyAtts['filename'])) {
-                                    $replyAtts = [$replyAtts];
-                                }
+                                $rawReply = $reply['attachments']['attachment'] ?? [];
+                                // Normalise single attachment (assoc) to a list
+                                $replyAtts = isset($rawReply['filename']) ? [$rawReply] : (array) $rawReply;
+                                // Only keep entries that have a real HTTP URL
+                                $replyAtts = array_filter($replyAtts, fn($a) =>
+                                    is_array($a) &&
+                                    !empty($a['filename']) &&
+                                    !empty($a['url']) &&
+                                    str_starts_with($a['url'], 'http')
+                                );
                             @endphp
                             @if (!empty($replyAtts))
                                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;{{ $isAdmin ? '' : 'justify-content:flex-end;' }}">
                                     @foreach ($replyAtts as $att)
-                                        <a
-                                            href="{{ $att['url'] ?? '#' }}"
-                                            target="_blank"
-                                            rel="noopener"
+                                        <a href="{{ $att['url'] }}" target="_blank" rel="noopener"
                                             style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid var(--gray-200);font-size:0.75rem;color:var(--gray-600);text-decoration:none;background:var(--white,#fff);"
                                             onmouseover="this.style.background='var(--gray-50)'"
                                             onmouseout="this.style.background='var(--white,#fff)'"
-                                        >
-                                            <x-filament::icon icon="tabler-paperclip" style="width:0.875rem;height:0.875rem;" />
-                                            {{ $att['filename'] ?? 'Attachment' }}
-                                        </a>
+                                        ><x-filament::icon icon="tabler-paperclip" style="width:0.875rem;height:0.875rem;" />{{ $att['filename'] }}</a>
                                     @endforeach
                                 </div>
                             @endif

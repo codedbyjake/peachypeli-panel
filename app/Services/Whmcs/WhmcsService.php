@@ -128,7 +128,15 @@ class WhmcsService
     /** @return array<string, mixed> */
     public function getTicket(int $ticketId): array
     {
-        return $this->call('GetTicket', ['ticketid' => $ticketId]);
+        $data = $this->call('GetTicket', ['ticketid' => $ticketId]);
+
+        Log::info('WHMCS GetTicket attachments', [
+            'ticket_attachments' => $data['attachments'] ?? 'none',
+            'first_reply_attachments' => $data['replies']['reply'][0]['attachments']
+                ?? ($data['replies']['reply']['attachments'] ?? 'none'),
+        ]);
+
+        return $data;
     }
 
     /** @return array<int, array<string, mixed>> */
