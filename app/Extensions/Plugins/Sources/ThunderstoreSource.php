@@ -3,15 +3,12 @@
 namespace App\Extensions\Plugins\Sources;
 
 use App\Extensions\Plugins\PluginSourceInterface;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class ThunderstoreSource implements PluginSourceInterface
 {
     private const BASE_URL = 'https://thunderstore.io';
-
-    private const CACHE_TTL = 3600; // 1 hour
 
     private string $community;
 
@@ -25,112 +22,69 @@ class ThunderstoreSource implements PluginSourceInterface
 
     public function search(string $query): array
     {
-        $query    = strtolower(trim($query));
-        $packages = $this->fetchAllPackages();
+        $params = ['ordering' => 'most_downloaded'];
 
-        if ($query !== '') {
-            $packages = array_values(array_filter($packages, function (array $p) use ($query): bool {
-                $name = strtolower($p['name'] ?? '');
-                $desc = strtolower($p['versions'][0]['description'] ?? '');
-
-                return str_contains($name, $query) || str_contains($desc, $query);
-            }));
+        $q = trim($query);
+        if ($q !== '') {
+            $params['q'] = $q;
         }
 
-        usort($packages, fn ($a, $b) => ($b['total_downloads'] ?? 0) <=> ($a['total_downloads'] ?? 0));
+        $packages = $this->fetchPage($params);
 
-        return $this->normalise(array_values($packages));
+        return $this->normalise(array_slice($packages, 0, 100));
     }
 
     public function getFeatured(): array
     {
-        $packages = $this->fetchAllPackages();
+        $packages = $this->fetchPage(['ordering' => 'most_downloaded']);
 
-        usort($packages, fn ($a, $b) => ($b['total_downloads'] ?? 0) <=> ($a['total_downloads'] ?? 0));
-
-        return $this->normalise($packages);
+        return $this->normalise(array_slice($packages, 0, 100));
     }
 
     /**
-     * Return all packages for the community, using a 1-hour cache to avoid
-     * re-fetching all pages on every request.
+     * Fetch a single page from the community endpoint and return its package array.
+     * Handles both paginated { results: [...] } and flat [...] responses.
      *
+     * @param  array<string, string>  $params
      * @return array<int, array<string, mixed>>
      */
-    private function fetchAllPackages(): array
+    private function fetchPage(array $params = []): array
     {
-        return Cache::remember(
-            'thunderstore_packages_' . $this->community,
-            self::CACHE_TTL,
-            fn () => $this->fetchAllPages()
-        );
-    }
+        $url      = self::BASE_URL . "/c/{$this->community}/api/v1/package/";
+        $response = Http::timeout(15)->connectTimeout(5)->get($url, $params);
 
-    /**
-     * Follow the paginated v1 community endpoint until `next` is null,
-     * accumulating all packages into a single array.
-     *
-     * The endpoint may return either:
-     *   - A paginated object: { next: string|null, results: [...] }
-     *   - A flat array: [...]  (older/smaller communities)
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    private function fetchAllPages(): array
-    {
-        $url  = self::BASE_URL . "/c/{$this->community}/api/v1/package/";
-        $all  = [];
-        $page = 1;
-
-        while ($url !== null) {
-            $response = Http::timeout(30)->connectTimeout(5)->get($url);
-
-            if (!$response->successful()) {
-                Log::error('ThunderstoreSource: page fetch failed', [
-                    'community' => $this->community,
-                    'url'       => $url,
-                    'status'    => $response->status(),
-                ]);
-                break;
-            }
-
-            $data = $response->json();
-
-            if (!is_array($data)) {
-                Log::error('ThunderstoreSource: unexpected response', [
-                    'community' => $this->community,
-                    'url'       => $url,
-                ]);
-                break;
-            }
-
-            if (array_key_exists('results', $data)) {
-                // Paginated DRF response: { next, previous, results }
-                $all  = array_merge($all, $data['results'] ?? []);
-                $next = $data['next'] ?? null;
-                $url  = is_string($next) ? $next : null;
-            } else {
-                // Flat array — entire catalogue in one response
-                $all = $data;
-                $url = null;
-            }
-
-            Log::info('ThunderstoreSource: fetched page', [
-                'community'    => $this->community,
-                'page'         => $page,
-                'batch_count'  => count($data['results'] ?? $data),
-                'running_total' => count($all),
+        if (!$response->successful()) {
+            Log::error('ThunderstoreSource: fetch failed', [
+                'community' => $this->community,
+                'url'       => $url,
+                'params'    => $params,
+                'status'    => $response->status(),
             ]);
 
-            $page++;
+            return [];
         }
 
-        return $all;
+        $data = $response->json();
+
+        if (!is_array($data)) {
+            Log::error('ThunderstoreSource: unexpected response format', [
+                'community' => $this->community,
+            ]);
+
+            return [];
+        }
+
+        // Paginated DRF response: { next, previous, results: [...] }
+        if (array_key_exists('results', $data)) {
+            return $data['results'] ?? [];
+        }
+
+        // Flat array (non-paginated endpoint variant)
+        return $data;
     }
 
     public function getLatestVersion(string $pluginId): ?array
     {
-        // pluginId is "Namespace-Name"
         [$namespace, $name] = array_pad(explode('-', $pluginId, 2), 2, '');
 
         $response = Http::timeout(10)->connectTimeout(5)
