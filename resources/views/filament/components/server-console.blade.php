@@ -33,12 +33,11 @@
     @endif
 
         {{-- ── Console (left column) ── --}}
-        <div style="display:flex;flex-direction:column;height:100%;border:1px solid #374151;">
+        <div style="display:flex;flex-direction:column;height:100%;border:1px solid #e5e7eb;border-radius:0;">
             <div id="terminal" wire:ignore style="flex:1;min-height:0;overflow:hidden;"></div>
 
             @if ($this->authorizeSendCommand())
-                <div class="flex items-center gap-2 w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-950/10 dark:border-white/10"
-                     style="border-bottom-right-radius: 10px; border-bottom-left-radius: 10px;">
+                <div class="flex items-center gap-3 w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-white/10">
                     <x-filament::icon
                         icon="tabler-chevrons-right"
                         class="h-4 w-4 shrink-0 text-primary-500 dark:text-primary-400"
