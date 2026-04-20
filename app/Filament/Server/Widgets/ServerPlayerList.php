@@ -111,6 +111,13 @@ class ServerPlayerList extends Widget
             $this->playerCount = count($this->players);
             $this->available   = true;
             $this->loaded      = true;
+
+            $this->dispatch('player-list-update',
+                players:   $this->players,
+                count:     $this->playerCount,
+                max:       $this->maxPlayers,
+                available: true,
+            );
         } catch (\Exception) {
             $this->available = false;
             $this->loaded    = true;
