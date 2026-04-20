@@ -206,11 +206,14 @@ class ServerConsole extends Widget
 
         $apiKey = config('services.rustmaps.key');
         if ($apiKey) {
-            $cacheKey = "rustmap.{$size}.{$seed}";
+            $cacheKey = "rustmap.v2.{$size}.{$seed}";
             $data     = cache()->remember($cacheKey, now()->addHours(24), function () use ($seed, $size, $apiKey) {
                 $response = Http::withHeaders(['Authorization' => "Bearer {$apiKey}"])
                     ->timeout(8)
-                    ->get("https://rustmaps.com/api/v2/maps/{$size}/{$seed}");
+                    ->get('https://rustmaps.com/api/v2/maps', [
+                        'seed'    => $seed,
+                        'mapSize' => $size,
+                    ]);
 
                 return $response->ok() ? $response->json() : null;
             });
