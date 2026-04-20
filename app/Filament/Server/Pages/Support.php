@@ -8,6 +8,7 @@ use App\Services\Whmcs\WhmcsService;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Log;
 
 class Support extends Page
 {
@@ -82,7 +83,8 @@ class Support extends Page
 
             $this->tickets     = $this->whmcs->getTickets($this->whmcsClientId);
             $this->departments = $this->whmcs->getDepartments();
-        } catch (\Exception) {
+        } catch (\Exception $e) {
+            Log::error('WHMCS Support initialise error: ' . $e->getMessage());
             $this->error = trans('server/support.unavailable');
         } finally {
             $this->loading = false;
@@ -103,7 +105,8 @@ class Support extends Page
             $this->ticket      = $this->whmcs->getTicket($ticketId);
             $this->currentView = 'ticket';
             $this->replyMessage = '';
-        } catch (\Exception) {
+        } catch (\Exception $e) {
+            Log::error('WHMCS Support viewTicket error: ' . $e->getMessage());
             $this->error = trans('server/support.unavailable');
         } finally {
             $this->loading = false;
@@ -121,7 +124,8 @@ class Support extends Page
             $this->ticket = $this->whmcs->getTicket((int) $this->ticket['ticketid']);
 
             Notification::make()->title(trans('server/support.reply_submitted'))->success()->send();
-        } catch (\Exception) {
+        } catch (\Exception $e) {
+            Log::error('WHMCS Support submitReply error: ' . $e->getMessage());
             Notification::make()->title(trans('server/support.reply_submit_failed'))->danger()->send();
         }
     }
@@ -156,7 +160,8 @@ class Support extends Page
             $this->currentView = 'list';
 
             Notification::make()->title(trans('server/support.ticket_submitted'))->success()->send();
-        } catch (\Exception) {
+        } catch (\Exception $e) {
+            Log::error('WHMCS Support submitNewTicket error: ' . $e->getMessage());
             Notification::make()->title(trans('server/support.ticket_submit_failed'))->danger()->send();
         }
     }

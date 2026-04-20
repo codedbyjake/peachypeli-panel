@@ -3,6 +3,7 @@
 namespace App\Services\Whmcs;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class WhmcsService
@@ -34,6 +35,12 @@ class WhmcsService
                 'action'       => $action,
                 'responsetype' => 'json',
             ], $params));
+
+        Log::info('WHMCS API call', [
+            'action' => $action,
+            'status' => $response->status(),
+            'body'   => $response->body(),
+        ]);
 
         if (!$response->ok()) {
             throw new RuntimeException("WHMCS API HTTP {$response->status()}");
