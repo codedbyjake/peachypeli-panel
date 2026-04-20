@@ -206,21 +206,30 @@ class ServerConsole extends Widget
 
         $apiKey = config('services.rustmaps.key');
         if ($apiKey) {
-            $cacheKey = "rustmap.v2.{$size}.{$seed}";
+            $cacheKey = "rustmap.v4.{$size}.{$seed}";
             $data     = cache()->remember($cacheKey, now()->addHours(24), function () use ($seed, $size, $apiKey) {
-                $response = Http::withHeaders(['Authorization' => "Bearer {$apiKey}"])
+                $response = Http::withHeaders(['X-API-Key' => $apiKey])
                     ->timeout(8)
-                    ->get('https://rustmaps.com/api/v2/maps', [
-                        'seed'    => $seed,
-                        'mapSize' => $size,
+                    ->get("https://api.rustmaps.com/v4/maps/{$size}/{$seed}", [
+                        'staging' => false,
                     ]);
 
-                return $response->ok() ? $response->json() : null;
+                if (!$response->ok()) {
+                    \Illuminate\Support\Facades\Log::warning('Rustmaps API error', [
+                        'status' => $response->status(),
+                        'body'   => $response->body(),
+                    ]);
+
+                    return null;
+                }
+
+                return $response->json();
             });
 
             if ($data) {
-                $imageUrl = $data['imageUrl'] ?? null;
-                $pageUrl  = $data['url'] ?? $pageUrl;
+                $payload  = $data['data'] ?? $data;
+                $imageUrl = $payload['imageUrl'] ?? $payload['thumbnailUrl'] ?? null;
+                $pageUrl  = $payload['url'] ?? $pageUrl;
             }
         }
 

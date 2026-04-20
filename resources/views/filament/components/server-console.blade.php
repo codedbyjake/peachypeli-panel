@@ -27,8 +27,8 @@
     <div
         x-data="{ panelVisible: true }"
         @collapse-game-panel.window="panelVisible = false"
-        style="display:grid;grid-template-columns:1fr 360px;gap:1rem;align-items:start"
-        :style="panelVisible ? 'display:grid;grid-template-columns:1fr 360px;gap:1rem;align-items:start' : ''"
+        style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start"
+        :style="panelVisible ? 'display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start' : ''"
     >
     @endif
 
