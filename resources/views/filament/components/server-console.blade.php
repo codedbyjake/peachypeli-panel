@@ -405,14 +405,13 @@
         };
 
         // ── Player list intercept state ──────────────────────────────────────────
-        let playerListMode = null;     // null | 'minecraft' | 'rust' | 'ark' | 'valheim' | 'palworld' | 'fivem'
+        let playerListMode = null;     // null | 'minecraft' | 'rust' | 'valheim' | 'palworld' | 'fivem'
         let playerListPlayers = [];
         let playerListCount = 0;
         let playerListMax = 0;
         let playerListFoundHeader = false;
         let playerListTimeout = null;
         let playerListCountless = false; // games that don't emit a total count header
-        let playerListRawLines = [];     // debug: every stripped line captured during an active request
 
         const stripAnsi = (str) => str
             .replace(/\x1b\[[\d;]*[A-Za-z]/g, '')  // ANSI escape sequences
@@ -437,7 +436,6 @@
         const interceptPlayerListLine = (rawLine) => {
             const line = stripAnsi(rawLine).trim();
             if (!line) return;
-            if (playerListMode) playerListRawLines.push(line);
 
             if (playerListMode === 'minecraft') {
                 // "There are X of a max of Y players online: Name1, Name2"
@@ -462,27 +460,6 @@
                     if (playerListPlayers.length >= playerListCount) {
                         flushPlayerList(true);
                     }
-                }
-
-            } else if (playerListMode === 'ark') {
-                console.log('[ARK playerlist]', JSON.stringify(line));
-
-                // ARK RCON heartbeat — not player data, ignore
-                if (/^keep alive$/i.test(line)) return;
-
-                // "No Players Connected" and common variants → 0 players, still available
-                if (/^no (?:players? connected|connected players?)/i.test(line) ||
-                    /^0 players? online/i.test(line)) {
-                    playerListFoundHeader = true;
-                    flushPlayerList(true);
-                    return;
-                }
-
-                // "0. PlayerName, 76561198XXXXXXXXX"
-                const arkMatch = line.match(/^\d+\.\s+(.+),\s+(\d+)$/);
-                if (arkMatch) {
-                    playerListFoundHeader = true;
-                    playerListPlayers.push({ name: arkMatch[1].trim(), steamId: arkMatch[2].trim() });
                 }
 
             } else if (playerListMode === 'valheim') {
@@ -571,13 +548,11 @@
             playerListCount        = 0;
             playerListMax          = 0;
             playerListFoundHeader  = false;
-            playerListCountless    = ['ark', 'valheim', 'palworld', 'fivem'].includes(gameType);
-            playerListRawLines     = [];
+            playerListCountless    = ['valheim', 'palworld', 'fivem'].includes(gameType);
 
             const commands = {
                 minecraft: 'list',
                 rust:      'status',
-                ark:       'cheat listplayers',
                 valheim:   'players',
                 palworld:  'ShowPlayers',
                 fivem:     'status',
@@ -590,29 +565,8 @@
                 'args': [command],
             }));
 
-            // ARK fallback: after 2 s, if cheat listplayers produced nothing, also fire
-            // GetCurrentPlayerCount so its raw response appears in the debug log alongside.
-            if (gameType === 'ark') {
-                setTimeout(() => {
-                    if (playerListMode === 'ark' && !playerListFoundHeader && playerListPlayers.length === 0) {
-                        console.log('[ARK playerlist] cheat listplayers produced no data — sending GetCurrentPlayerCount');
-                        socket.send(JSON.stringify({ 'event': 'send command', 'args': ['GetCurrentPlayerCount'] }));
-                    }
-                }, 2000);
-            }
-
             // For countless games flush with available=true if a header or any players were seen.
             playerListTimeout = setTimeout(() => {
-                // If ARK returned output but nothing parsed, report every raw line captured
-                // so it is visible in the panel notification and browser console.
-                if (playerListMode === 'ark' && playerListRawLines.length > 0 && playerListPlayers.length === 0 && !playerListFoundHeader) {
-                    const preview = playerListRawLines.slice(0, 20).join('\n');
-                    console.warn('[ARK playerlist] No players parsed. Raw output:\n' + preview);
-                    Livewire.dispatch('rcon-command-response', {
-                        label: 'ARK Player List — Debug',
-                        response: preview,
-                    });
-                }
                 flushPlayerList(playerListCountless
                     ? (playerListFoundHeader || playerListPlayers.length > 0)
                     : false

@@ -42,7 +42,8 @@
         "symfony/mailgun-mailer": "^7.4",
         "symfony/postmark-mailer": "^7.4",
         "symfony/yaml": "^7.4",
-        "webmozart/assert": "^1.12"
+        "webmozart/assert": "^1.12",
+        "xpaw/php-source-query-class": "*"
     },
     "require-dev": {
         "barryvdh/laravel-ide-helper": "^3.6",

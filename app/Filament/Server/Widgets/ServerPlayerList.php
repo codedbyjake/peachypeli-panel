@@ -79,6 +79,46 @@ class ServerPlayerList extends Widget
         return 'unknown';
     }
 
+    public function queryArkViaSourceQuery(): void
+    {
+        $host = $this->server?->allocation?->alias ?? $this->server?->allocation?->ip;
+
+        $queryPort = null;
+        foreach ($this->server?->variables ?? [] as $variable) {
+            if ($variable->env_variable === 'QUERY_PORT') {
+                $queryPort = (int) ($variable->server_value ?? $variable->default_value ?? 0);
+                break;
+            }
+        }
+
+        if (!$host || !$queryPort) {
+            $this->available = false;
+            $this->loaded = true;
+            return;
+        }
+
+        $query = new \xPaw\SourceQuery\SourceQuery();
+        try {
+            $query->Connect($host, $queryPort, 3, \xPaw\SourceQuery\SourceQuery::SOURCE);
+            $info       = $query->GetInfo();
+            $rawPlayers = $query->GetPlayers();
+
+            $this->maxPlayers  = (int) ($info['MaxPlayers'] ?? 0);
+            $this->players     = array_values(array_filter(
+                array_map(fn ($p) => ['name' => $p['Name'] ?? ''], $rawPlayers ?? []),
+                fn ($p) => $p['name'] !== ''
+            ));
+            $this->playerCount = count($this->players);
+            $this->available   = true;
+            $this->loaded      = true;
+        } catch (\Exception) {
+            $this->available = false;
+            $this->loaded    = true;
+        } finally {
+            $query->Disconnect();
+        }
+    }
+
     #[On('player-list-update')]
     public function receivePlayerList(array $players, int $count, int $max, bool $available): void
     {
