@@ -201,7 +201,7 @@ class ServerConsole extends Widget
             return ['seed' => '', 'size' => $size, 'imageUrl' => null, 'pageUrl' => null];
         }
 
-        $pageUrl  = "https://rustmaps.com/map/{$size}/{$seed}";
+        $pageUrl  = "https://rustmaps.com/map/{$size}_{$seed}";
         $imageUrl = null;
 
         $apiKey = config('services.rustmaps.key');
