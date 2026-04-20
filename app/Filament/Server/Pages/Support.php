@@ -258,20 +258,34 @@ class Support extends Page
      */
     private function uploadToS3(array $files, string $folder): array
     {
+        // Log full config structure so we can see what keys are actually available
+        Log::info('WHMCS Support uploadToS3: raw backups config', [
+            'backups_default'      => config('backups.default'),
+            'backups_disks_keys'   => array_keys((array) config('backups.disks')),
+            'backups_disks_s3_keys'=> array_keys((array) config('backups.disks.s3')),
+        ]);
+
         $cfg = config('backups.disks.s3');
 
         Log::info('WHMCS Support uploadToS3 called', [
-            'folder'     => $folder,
-            'file_count' => count($files),
-            's3_bucket'  => $cfg['bucket'] ?? 'NOT SET',
-            's3_region'  => $cfg['region'] ?? 'NOT SET',
-            's3_endpoint' => $cfg['endpoint'] ?? 'none',
-            's3_key_set'  => !empty($cfg['key']),
-            's3_secret_set' => !empty($cfg['secret']),
+            'folder'            => $folder,
+            'file_count'        => count($files),
+            's3_bucket'         => $cfg['bucket'] ?? 'NOT SET',
+            's3_region'         => $cfg['region'] ?? 'NOT SET',
+            's3_endpoint'       => $cfg['endpoint'] ?? 'none',
+            's3_path_style'     => $cfg['use_path_style_endpoint'] ?? false,
+            's3_key_set'        => !empty($cfg['key']),
+            's3_secret_set'     => !empty($cfg['secret']),
+            's3_key_length'     => strlen((string) ($cfg['key'] ?? '')),
+            's3_secret_length'  => strlen((string) ($cfg['secret'] ?? '')),
         ]);
 
         if (empty($cfg['key']) || empty($cfg['secret']) || empty($cfg['bucket'])) {
-            Log::warning('WHMCS Support: S3 not configured — missing key, secret, or bucket');
+            Log::warning('WHMCS Support: S3 not configured — missing key, secret, or bucket', [
+                'has_key'    => !empty($cfg['key']),
+                'has_secret' => !empty($cfg['secret']),
+                'has_bucket' => !empty($cfg['bucket']),
+            ]);
             return [];
         }
 
@@ -292,14 +306,37 @@ class Support extends Page
             $clientConfig['use_path_style_endpoint'] = (bool) $cfg['use_path_style_endpoint'];
         }
 
-        $client = new S3Client($clientConfig);
+        try {
+            $client = new S3Client($clientConfig);
+            Log::info('WHMCS Support uploadToS3: S3Client constructed OK');
+        } catch (\Exception $e) {
+            Log::error('WHMCS Support uploadToS3: S3Client construction FAILED', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return [];
+        }
+
         $bucket = $cfg['bucket'];
         $urls   = [];
 
+        Log::info('WHMCS Support uploadToS3: entering loop', [
+            'file_count'  => count($files),
+            'files_array' => array_map(fn($f) => [
+                'class'    => is_object($f) ? get_class($f) : gettype($f),
+                'is_uploaded_file' => $f instanceof UploadedFile,
+            ], $files),
+        ]);
+
         foreach ($files as $i => $file) {
+            Log::info("WHMCS Support uploadToS3: checking file {$i}", [
+                'class'            => is_object($file) ? get_class($file) : gettype($file),
+                'is_uploaded_file' => $file instanceof UploadedFile,
+            ]);
+
             if (!$file instanceof UploadedFile) {
-                Log::warning("WHMCS Support uploadToS3: item {$i} is not an UploadedFile", [
-                    'type' => get_class($file),
+                Log::warning("WHMCS Support uploadToS3: item {$i} is not an UploadedFile — skipping", [
+                    'class' => is_object($file) ? get_class($file) : gettype($file),
                 ]);
                 continue;
             }
