@@ -42,7 +42,7 @@
                 {{ trans('server/support.title') }}
             </x-slot>
 
-            <x-slot name="headerEnd">
+            <x-slot name="afterHeader">
                 <div class="flex items-center gap-2">
                     <x-filament::button
                         icon="tabler-refresh"

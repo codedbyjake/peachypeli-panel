@@ -73,7 +73,7 @@ class WhmcsService
     /** @return array<int, array<string, mixed>> */
     public function getTickets(int $clientId): array
     {
-        $data    = $this->call('GetTickets', ['clientid' => $clientId, 'limitnum' => 100]);
+        $data    = $this->call('GetTickets', ['clientid' => $clientId, 'limitnum' => 100, 'status' => 'All']);
         $tickets = $data['tickets']['ticket'] ?? [];
 
         return isset($tickets[0]) ? $tickets : ($tickets ? [$tickets] : []);
