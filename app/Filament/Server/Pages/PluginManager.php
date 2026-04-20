@@ -41,6 +41,8 @@ class PluginManager extends Page
 
     public string $activeTab = 'browse';
 
+    public int $page = 1;
+
     public string $gameType = 'unknown';
 
     public string $sourceName = '';
@@ -95,6 +97,8 @@ class PluginManager extends Page
         }
 
         $query = trim($this->search);
+
+        $this->page = 1;
 
         try {
             if ($query === '') {
@@ -265,6 +269,14 @@ class PluginManager extends Page
     public function setTab(string $tab): void
     {
         $this->activeTab = $tab;
+        $this->page      = 1;
+    }
+
+    public function setPage(int $page): void
+    {
+        $total = count($this->results);
+        $pages = $total > 0 ? (int) ceil($total / 20) : 1;
+        $this->page = max(1, min($page, $pages));
     }
 
     public function isInstalled(string $pluginId): bool

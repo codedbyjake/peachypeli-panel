@@ -86,6 +86,15 @@
                 </p>
 
                 {{-- Empty state --}}
+                @php
+                    $pmPerPage    = 20;
+                    $pmTotal      = count($this->results);
+                    $pmTotalPages = $pmTotal > 0 ? (int) ceil($pmTotal / $pmPerPage) : 1;
+                    $pmPage       = max(1, min($this->page, $pmTotalPages));
+                    $pmOffset     = ($pmPage - 1) * $pmPerPage;
+                    $pmPageItems  = array_slice($this->results, $pmOffset, $pmPerPage);
+                @endphp
+
                 @if (empty($this->results))
                     <div class="flex flex-col items-center justify-center gap-2 py-10 text-center">
                         <x-filament::icon icon="tabler-mood-empty" class="h-8 w-8 text-gray-300 dark:text-gray-600" />
@@ -117,7 +126,7 @@
                     </style>
 
                     <div class="pm-grid">
-                        @foreach ($this->results as $plugin)
+                        @foreach ($pmPageItems as $plugin)
                             @php
                                 $pluginId         = $plugin['id'] ?? '';
                                 $alreadyInstalled = $this->isInstalled($pluginId);
@@ -218,6 +227,38 @@
                             </div>
                         @endforeach
                     </div>
+
+                    {{-- Pagination --}}
+                    @if ($pmTotalPages > 1)
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:1rem;margin-top:0.5rem;border-top:1px solid var(--gray-100)">
+
+                            <button
+                                wire:click="setPage({{ $pmPage - 1 }})"
+                                @disabled($pmPage <= 1)
+                                style="display:inline-flex;align-items:center;gap:0.375rem;padding:0.375rem 0.75rem;border-radius:0.5rem;border:1px solid var(--gray-300);background:var(--gray-50);font-size:0.8125rem;font-weight:500;color:var(--gray-700);cursor:pointer;transition:background 150ms;{{ $pmPage <= 1 ? 'opacity:0.4;cursor:not-allowed;' : '' }}"
+                            >
+                                <x-filament::icon icon="tabler-chevron-left" class="h-4 w-4" />
+                                Previous
+                            </button>
+
+                            <span style="font-size:0.8125rem;color:var(--gray-500)">
+                                Page {{ $pmPage }} of {{ $pmTotalPages }}
+                                <span style="color:var(--gray-300);margin:0 0.25rem">&middot;</span>
+                                {{ $pmTotal }} plugins
+                            </span>
+
+                            <button
+                                wire:click="setPage({{ $pmPage + 1 }})"
+                                @disabled($pmPage >= $pmTotalPages)
+                                style="display:inline-flex;align-items:center;gap:0.375rem;padding:0.375rem 0.75rem;border-radius:0.5rem;border:1px solid var(--gray-300);background:var(--gray-50);font-size:0.8125rem;font-weight:500;color:var(--gray-700);cursor:pointer;transition:background 150ms;{{ $pmPage >= $pmTotalPages ? 'opacity:0.4;cursor:not-allowed;' : '' }}"
+                            >
+                                Next
+                                <x-filament::icon icon="tabler-chevron-right" class="h-4 w-4" />
+                            </button>
+
+                        </div>
+                    @endif
+
                 @endif
 
             </x-filament::section>
