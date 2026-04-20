@@ -475,9 +475,8 @@
                     return;
                 }
 
-                // "0. PlayerName, SteamID64" (ASE) or "0. PlayerName, EOSID" (ASA)
-                // Accept any non-whitespace sequence as the ID — don't restrict to SteamID64
-                const arkMatch = line.match(/^\d+\.\s+(.+?),\s*(\S+)\s*$/);
+                // "0. PlayerName, 76561198XXXXXXXXX"
+                const arkMatch = line.match(/^\d+\.\s+(.+),\s+(\d+)$/);
                 if (arkMatch) {
                     playerListFoundHeader = true;
                     playerListPlayers.push({ name: arkMatch[1].trim(), steamId: arkMatch[2].trim() });
