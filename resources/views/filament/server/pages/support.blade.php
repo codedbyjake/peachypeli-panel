@@ -311,8 +311,17 @@
                     ></textarea>
 
                     {{-- Attachments --}}
-                    <div class="space-y-1">
-                        <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">Attachments <span style="font-weight:400;color:var(--gray-400);">(optional, max 10 MB each)</span></label>
+                    <div
+                        x-data="{ uploading: false, fileCount: 0 }"
+                        x-on:livewire-upload-start="uploading = true"
+                        x-on:livewire-upload-finish="uploading = false"
+                        x-on:livewire-upload-error="uploading = false"
+                        class="space-y-1"
+                    >
+                        <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">
+                            Attachments
+                            <span style="font-weight:400;color:var(--gray-400);">(optional, max 10 MB each)</span>
+                        </label>
                         @error('replyAttachments.*')
                             <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
                         @enderror
@@ -320,21 +329,34 @@
                             type="file"
                             wire:model="replyAttachments"
                             multiple
+                            x-on:change="fileCount = $event.target.files.length"
                             style="display:block;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--gray-300);background:var(--white,#fff);font-size:0.875rem;color:var(--gray-700);cursor:pointer;"
                         >
-                        @if (!empty($replyAttachments))
-                            <p style="font-size:0.75rem;color:var(--gray-500);">{{ count($replyAttachments) }} file(s) selected</p>
-                        @endif
+                        <p x-show="uploading" style="font-size:0.75rem;color:var(--warning-600);">
+                            Uploading… please wait before sending.
+                        </p>
+                        <p x-show="!uploading && fileCount > 0" style="font-size:0.75rem;color:var(--success-600);">
+                            <span x-text="fileCount"></span> file(s) ready to send.
+                        </p>
                     </div>
 
                     <div class="flex justify-end">
-                        <x-filament::button
-                            icon="tabler-send"
-                            wire:click="submitReply"
-                            wire:loading.attr="disabled"
+                        <div
+                            x-data="{ uploading: false }"
+                            x-on:livewire-upload-start="uploading = true"
+                            x-on:livewire-upload-finish="uploading = false"
+                            x-on:livewire-upload-error="uploading = false"
                         >
-                            Send Reply
-                        </x-filament::button>
+                            <x-filament::button
+                                icon="tabler-send"
+                                wire:click="submitReply"
+                                wire:loading.attr="disabled"
+                                x-bind:disabled="uploading"
+                            >
+                                <span x-show="!uploading">Send Reply</span>
+                                <span x-show="uploading">Uploading…</span>
+                            </x-filament::button>
+                        </div>
                     </div>
                 </div>
             </x-filament::section>
@@ -431,8 +453,17 @@
                 </div>
 
                 {{-- Attachments --}}
-                <div class="space-y-1">
-                    <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">Attachments <span style="font-weight:400;color:var(--gray-400);">(optional, max 10 MB each)</span></label>
+                <div
+                    x-data="{ uploading: false, fileCount: 0 }"
+                    x-on:livewire-upload-start="uploading = true"
+                    x-on:livewire-upload-finish="uploading = false"
+                    x-on:livewire-upload-error="uploading = false"
+                    class="space-y-1"
+                >
+                    <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">
+                        Attachments
+                        <span style="font-weight:400;color:var(--gray-400);">(optional, max 10 MB each)</span>
+                    </label>
                     @error('newAttachments.*')
                         <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
                     @enderror
@@ -440,22 +471,35 @@
                         type="file"
                         wire:model="newAttachments"
                         multiple
+                        x-on:change="fileCount = $event.target.files.length"
                         style="display:block;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--gray-300);background:var(--white,#fff);font-size:0.875rem;color:var(--gray-700);cursor:pointer;"
                     >
-                    @if (!empty($newAttachments))
-                        <p style="font-size:0.75rem;color:var(--gray-500);">{{ count($newAttachments) }} file(s) selected</p>
-                    @endif
+                    <p x-show="uploading" style="font-size:0.75rem;color:var(--warning-600);">
+                        Uploading… please wait before sending.
+                    </p>
+                    <p x-show="!uploading && fileCount > 0" style="font-size:0.75rem;color:var(--success-600);">
+                        <span x-text="fileCount"></span> file(s) ready to send.
+                    </p>
                 </div>
 
                 <div class="flex justify-end">
+                    <div
+                        x-data="{ uploading: false }"
+                        x-on:livewire-upload-start="uploading = true"
+                        x-on:livewire-upload-finish="uploading = false"
+                        x-on:livewire-upload-error="uploading = false"
+                    >
                     <x-filament::button
                         icon="tabler-send"
                         wire:click="submitNewTicket"
                         wire:loading.attr="disabled"
+                        x-bind:disabled="uploading"
                     >
-                        Submit Ticket
+                        <span x-show="!uploading">Submit Ticket</span>
+                        <span x-show="uploading">Uploading…</span>
                     </x-filament::button>
-                </div>
+                    </div>{{-- /uploading guard --}}
+                </div>{{-- /flex justify-end --}}
 
             </div>
         </x-filament::section>
