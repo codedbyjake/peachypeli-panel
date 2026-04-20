@@ -10,6 +10,12 @@ return [
         'key' => env('RUSTMAPS_API_KEY'),
     ],
 
+    'whmcs' => [
+        'url'        => env('WHMCS_URL'),
+        'identifier' => env('WHMCS_API_IDENTIFIER'),
+        'secret'     => env('WHMCS_API_SECRET'),
+    ],
+
     'mailgun' => [
         'domain' => env('MAILGUN_DOMAIN'),
         'secret' => env('MAILGUN_SECRET'),
