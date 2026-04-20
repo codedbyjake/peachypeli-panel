@@ -37,21 +37,15 @@
     @if ($this->supported)
 
         {{-- Tab bar --}}
-        <div class="flex items-center border-b border-gray-200 dark:border-gray-700">
+        <div style="display:flex;align-items:center;border-bottom:1px solid var(--gray-200);">
             <button
                 wire:click="setTab('browse')"
-                class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors
-                    {{ $this->activeTab === 'browse'
-                        ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' }}"
+                style="padding:10px 16px;font-size:0.875rem;font-weight:500;background:transparent;border-left:none;border-right:none;border-top:none;cursor:pointer;margin-bottom:-1px;transition:color 150ms;{{ $this->activeTab === 'browse' ? 'border-bottom:2px solid var(--primary-600);color:var(--primary-600);' : 'border-bottom:2px solid transparent;color:var(--gray-500);' }}"
             >Browse</button>
 
             <button
                 wire:click="setTab('installed')"
-                class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors
-                    {{ $this->activeTab === 'installed'
-                        ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' }}"
+                style="padding:10px 16px;font-size:0.875rem;font-weight:500;background:transparent;border-left:none;border-right:none;border-top:none;cursor:pointer;margin-bottom:-1px;transition:color 150ms;{{ $this->activeTab === 'installed' ? 'border-bottom:2px solid var(--primary-600);color:var(--primary-600);' : 'border-bottom:2px solid transparent;color:var(--gray-500);' }}"
             >
                 {{--
                     Count is interpolated directly into the label string rather than using a

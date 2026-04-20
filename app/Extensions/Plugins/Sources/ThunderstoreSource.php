@@ -111,14 +111,20 @@ class ThunderstoreSource implements PluginSourceInterface
             return null;
         }
 
-        // If we stopped before the closing ']', repair the truncated array.
-        // Top-level array elements end with '},' so find the last one and close the array.
+        // If we stopped reading before the closing ']', the array is truncated.
+        // Repair it by finding the last COMPLETE top-level object using depth tracking.
+        // Using strrpos('},') is insufficient because PackageListing objects contain
+        // a 'versions' array where each version also ends with '},' — that heuristic
+        // matches the wrong position and produces invalid JSON.
         if (substr(rtrim($buffer), -1) !== ']') {
-            $pos = strrpos($buffer, '},');
-            if ($pos === false) {
+            $buffer = $this->repairTruncatedArray($buffer);
+            if ($buffer === null) {
+                Log::error("ThunderstoreSource {$caller}: could not find any complete package in stream", [
+                    'community' => $this->community,
+                ]);
+
                 return null;
             }
-            $buffer = substr($buffer, 0, $pos + 1) . ']';
         }
 
         $packages = json_decode($buffer, true);
@@ -133,12 +139,65 @@ class ThunderstoreSource implements PluginSourceInterface
         }
 
         Log::info("ThunderstoreSource {$caller}: loaded packages", [
-            'community' => $this->community,
-            'count'     => count($packages),
+            'community'  => $this->community,
+            'count'      => count($packages),
             'bytes_read' => strlen($buffer),
         ]);
 
         return $packages;
+    }
+
+    /**
+     * Walk the buffer tracking JSON depth to find where the last complete top-level
+     * array element closes, then truncate and append ']' to form valid JSON.
+     *
+     * Returns null if no complete top-level object is found.
+     */
+    private function repairTruncatedArray(string $buffer): ?string
+    {
+        $len              = strlen($buffer);
+        $depth            = 0;
+        $inString         = false;
+        $escape           = false;
+        $lastCompletePos  = -1;
+
+        for ($i = 0; $i < $len; $i++) {
+            $c = $buffer[$i];
+
+            if ($escape) {
+                $escape = false;
+                continue;
+            }
+
+            if ($inString) {
+                if ($c === '\\') {
+                    $escape = true;
+                } elseif ($c === '"') {
+                    $inString = false;
+                }
+                continue;
+            }
+
+            switch ($c) {
+                case '"': $inString = true; break;
+                case '{': case '[': $depth++; break;
+                case ']': $depth--; break;
+                case '}':
+                    $depth--;
+                    // depth === 1 means we just closed a top-level object inside the
+                    // outer array (outer '[' puts us at depth 1, each '{' goes to 2+).
+                    if ($depth === 1) {
+                        $lastCompletePos = $i;
+                    }
+                    break;
+            }
+        }
+
+        if ($lastCompletePos === -1) {
+            return null;
+        }
+
+        return substr($buffer, 0, $lastCompletePos + 1) . ']';
     }
 
     public function getLatestVersion(string $pluginId): ?array
@@ -191,8 +250,9 @@ class ThunderstoreSource implements PluginSourceInterface
     private function normalise(array $raw): array
     {
         return array_values(array_map(function (array $p): array {
-            $latestVersion = $p['latest'] ?? ($p['versions'][0] ?? []);
-            $namespace     = $p['owner'] ?? $p['namespace'] ?? '';
+            // v1 PackageListing: versions array, most recent first. No 'latest' field.
+            $latestVersion = $p['versions'][0] ?? [];
+            $namespace     = $p['owner'] ?? '';
             $name          = $p['name'] ?? 'Unknown';
             $pluginId      = "{$namespace}-{$name}";
 
@@ -204,7 +264,7 @@ class ThunderstoreSource implements PluginSourceInterface
                 'version'      => $latestVersion['version_number'] ?? 'unknown',
                 'downloads'    => (int) ($p['total_downloads'] ?? 0),
                 'icon_url'     => $latestVersion['icon'] ?? null,
-                'url'          => self::BASE_URL . "/c/{$this->community}/p/{$namespace}/{$name}/",
+                'url'          => $p['package_url'] ?? '',
                 'download_url' => $latestVersion['download_url'] ?? null,
                 'file_name'    => "{$pluginId}.zip",
             ];
