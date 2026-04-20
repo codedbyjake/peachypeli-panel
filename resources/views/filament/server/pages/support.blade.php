@@ -3,12 +3,12 @@
     @php
         $statusColor = function(string $s): string {
             return match (strtolower($s)) {
-                'open'            => 'warning',
-                'answered'        => 'success',
-                'customer-reply'  => 'primary',
-                'on hold'         => 'warning',
-                'closed'          => 'gray',
-                default           => 'gray',
+                'open'           => 'warning',
+                'answered'       => 'success',
+                'customer-reply' => 'primary',
+                'on hold'        => 'warning',
+                'closed'         => 'gray',
+                default          => 'gray',
             };
         };
         $priorityColor = function(string $p): string {
@@ -21,17 +21,40 @@
         };
     @endphp
 
-    {{-- ── Loading ───────────────────────────────────────────────────────── --}}
+    <style>
+        .sp-input,.sp-textarea,.sp-select {
+            width:100%;border-radius:8px;border:1px solid var(--gray-300);
+            background:var(--gray-50);padding:8px 12px;font-size:0.875rem;
+            color:var(--gray-900);outline:none;box-sizing:border-box;
+            transition:border-color 150ms,box-shadow 150ms;
+        }
+        .sp-textarea { resize:vertical;font-family:inherit;line-height:1.5; }
+        .sp-input:focus,.sp-textarea:focus,.sp-select:focus {
+            border-color:var(--primary-500);
+            box-shadow:0 0 0 2px var(--primary-100);
+        }
+        .sp-select { appearance:none;-webkit-appearance:none;cursor:pointer; }
+        .sp-tab { background:transparent;border-left:none;border-right:none;border-top:none;cursor:pointer;transition:color 150ms; }
+        .sp-tab-inactive { color:var(--gray-500); }
+        .sp-tab-inactive:hover { color:var(--gray-700); }
+        .sp-ticket-row { border:none;background:transparent;cursor:pointer;text-align:left;width:100%; }
+        .sp-ticket-row:hover { background:var(--gray-50); }
+        .sp-att-link { text-decoration:none;transition:background 150ms; }
+        .sp-att-link:hover { background:var(--gray-100) !important; }
+        .sp-file-input { display:block;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--gray-300);background:var(--gray-50);font-size:0.875rem;color:var(--gray-700);cursor:pointer;box-sizing:border-box; }
+    </style>
+
+    {{-- ── Loading ────────────────────────────────────────────────────────── --}}
     @if ($this->loading)
-        <div class="flex items-center justify-center py-16">
-            <x-filament::loading-indicator class="h-8 w-8 text-primary-500" />
+        <div style="display:flex;align-items:center;justify-content:center;padding:64px 0;">
+            <x-filament::loading-indicator style="height:2rem;width:2rem;color:var(--primary-500);" />
         </div>
 
-    {{-- ── Error / not configured ─────────────────────────────────────────── --}}
+    {{-- ── Error / not configured ──────────────────────────────────────────── --}}
     @elseif ($this->error && $this->currentView === 'list')
         <x-filament::section>
-            <div class="flex items-center gap-3 text-sm text-danger-600 dark:text-danger-400">
-                <x-filament::icon icon="tabler-alert-circle" class="h-5 w-5 shrink-0" />
+            <div style="display:flex;align-items:center;gap:12px;font-size:0.875rem;color:var(--danger-600);">
+                <x-filament::icon icon="tabler-alert-circle" style="height:1.25rem;width:1.25rem;flex-shrink:0;" />
                 <span>{{ $this->error }}</span>
             </div>
         </x-filament::section>
@@ -40,30 +63,18 @@
     {{-- ── Ticket list ─────────────────────────────────────────────────── --}}
     {{-- ════════════════════════════════════════════════════════════════════ --}}
     @elseif ($this->currentView === 'list')
+
         <x-filament::section>
-            {{-- Section header --}}
-            <x-slot name="heading">
-                {{ trans('server/support.title') }}
-            </x-slot>
+            <x-slot name="heading">{{ trans('server/support.title') }}</x-slot>
 
             <x-slot name="afterHeader">
-                <div class="flex items-center gap-2">
-                    <x-filament::button
-                        icon="tabler-refresh"
-                        color="gray"
-                        size="sm"
-                        wire:click="refreshTickets"
-                        wire:loading.attr="disabled"
-                    >
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <x-filament::button icon="tabler-refresh" color="gray" size="sm"
+                        wire:click="refreshTickets" wire:loading.attr="disabled">
                         {{ trans('server/support.refresh') }}
                     </x-filament::button>
-
-                    <x-filament::button
-                        icon="tabler-plus"
-                        color="primary"
-                        size="sm"
-                        wire:click="showCreate"
-                    >
+                    <x-filament::button icon="tabler-plus" color="primary" size="sm"
+                        wire:click="showCreate">
                         {{ trans('server/support.new_ticket') }}
                     </x-filament::button>
                 </div>
@@ -75,26 +86,21 @@
                 $tabTickets    = $this->ticketTab === 'open' ? $openTickets : $closedTickets;
             @endphp
 
-            {{-- ── Tab bar ──────────────────────────────────────────────────── --}}
-            <div class="flex items-center border-b border-gray-200 dark:border-gray-700 -mx-6 px-6 mb-4">
-                <button
-                    wire:click="setTicketTab('open')"
-                    class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors
-                        {{ $this->ticketTab === 'open'
-                            ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' }}"
-                >{{ 'Open' . (!empty($openTickets) ? ' (' . count($openTickets) . ')' : '') }}</button>
-
-                <button
-                    wire:click="setTicketTab('closed')"
-                    class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors
-                        {{ $this->ticketTab === 'closed'
-                            ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' }}"
-                >{{ 'Closed' . (!empty($closedTickets) ? ' (' . count($closedTickets) . ')' : '') }}</button>
+            {{-- Tab bar --}}
+            <div style="display:flex;align-items:center;border-bottom:1px solid var(--gray-200);margin-bottom:16px;">
+                <button wire:click="setTicketTab('open')"
+                    class="sp-tab {{ $this->ticketTab === 'open' ? 'sp-tab-active' : 'sp-tab-inactive' }}"
+                    style="padding:10px 16px;font-size:0.875rem;font-weight:500;margin-bottom:-1px;{{ $this->ticketTab === 'open' ? 'border-bottom:2px solid var(--primary-600);color:var(--primary-600);' : 'border-bottom:2px solid transparent;' }}">
+                    {{ 'Open' . (!empty($openTickets) ? ' (' . count($openTickets) . ')' : '') }}
+                </button>
+                <button wire:click="setTicketTab('closed')"
+                    class="sp-tab {{ $this->ticketTab === 'closed' ? 'sp-tab-active' : 'sp-tab-inactive' }}"
+                    style="padding:10px 16px;font-size:0.875rem;font-weight:500;margin-bottom:-1px;{{ $this->ticketTab === 'closed' ? 'border-bottom:2px solid var(--primary-600);color:var(--primary-600);' : 'border-bottom:2px solid transparent;' }}">
+                    {{ 'Closed' . (!empty($closedTickets) ? ' (' . count($closedTickets) . ')' : '') }}
+                </button>
             </div>
 
-            {{-- ── Ticket table ──────────────────────────────────────────────── --}}
+            {{-- Ticket table --}}
             @if (empty($tabTickets))
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:48px 0;text-align:center;">
                     <x-filament::icon icon="tabler-ticket" style="width:2.5rem;height:2.5rem;color:var(--gray-300);" />
@@ -104,18 +110,15 @@
                 </div>
             @else
                 <div style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;padding:0 4px 10px;border-bottom:1px solid var(--gray-200);margin-bottom:4px;">
-                    @foreach (['#','Subject','Status','Department','Priority','Updated'] as $col)
+                    @foreach (['#', 'Subject', 'Status', 'Department', 'Priority', 'Updated'] as $col)
                         <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);{{ $col === 'Updated' ? 'text-align:right;' : '' }}">{{ $col }}</span>
                     @endforeach
                 </div>
 
                 @foreach ($tabTickets as $t)
-                    <button
+                    <button class="sp-ticket-row"
                         wire:click="viewTicket({{ (int) ($t['id'] ?? 0) }})"
-                        style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;width:100%;text-align:left;padding:10px 4px;align-items:center;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:background 150ms ease;"
-                        onmouseover="this.style.background='var(--gray-50)'"
-                        onmouseout="this.style.background='transparent'"
-                    >
+                        style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;padding:10px 4px;align-items:center;border-radius:8px;transition:background 150ms;">
                         <span style="font-size:0.75rem;font-family:monospace;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['tid'] ?? $t['id'] ?? '—' }}</span>
                         <span style="font-size:0.875rem;font-weight:500;color:var(--gray-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['subject'] ?? '—' }}</span>
                         <div><x-filament::badge :color="$statusColor($t['status'] ?? '')">{{ ucfirst($t['status'] ?? '—') }}</x-filament::badge></div>
@@ -133,30 +136,25 @@
                     @endif
                 @endforeach
             @endif
+
         </x-filament::section>
 
     {{-- ════════════════════════════════════════════════════════════════════ --}}
     {{-- ── Ticket detail ──────────────────────────────────────────────── --}}
     {{-- ════════════════════════════════════════════════════════════════════ --}}
     @elseif ($this->currentView === 'ticket')
-        {{-- Breadcrumb / back nav --}}
-        <div class="flex items-center gap-2 mb-1">
-            <x-filament::button
-                icon="tabler-arrow-left"
-                color="gray"
-                size="sm"
-                wire:click="backToList"
-            >
+
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <x-filament::button icon="tabler-arrow-left" color="gray" size="sm" wire:click="backToList">
                 {{ trans('server/support.back_to_tickets') }}
             </x-filament::button>
         </div>
 
         <x-filament::section>
-            {{-- Ticket header --}}
             <x-slot name="heading">
-                <div class="flex flex-wrap items-center gap-2">
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
                     <span>{{ $this->ticket['subject'] ?? 'Ticket' }}</span>
-                    <span class="text-xs font-mono font-normal text-gray-400 dark:text-gray-500">
+                    <span style="font-size:0.75rem;font-family:monospace;font-weight:400;color:var(--gray-400);">
                         #{{ $this->ticket['tid'] ?? $this->ticket['ticketid'] ?? '' }}
                     </span>
                 </div>
@@ -171,42 +169,36 @@
                         {{ ucfirst($this->ticket['priority'] ?? '—') }}
                     </x-filament::badge>
                     @if (strtolower($this->ticket['status'] ?? '') !== 'closed')
-                        <x-filament::button
-                            color="danger"
-                            size="sm"
-                            icon="tabler-x"
-                            wire:click="closeTicket"
-                            wire:loading.attr="disabled"
-                        >
+                        <x-filament::button color="danger" size="sm" icon="tabler-x"
+                            wire:click="closeTicket" wire:loading.attr="disabled">
                             Close Ticket
                         </x-filament::button>
                     @endif
                 </div>
             </x-slot>
 
-            {{-- Thread --}}
-            <div class="space-y-4">
+            {{-- Message thread --}}
+            <div style="display:flex;flex-direction:column;gap:16px;">
 
                 {{-- Opening message --}}
                 @if (!empty($this->ticket['message']))
                     @php
-                        $isAdmin = false;
                         $senderName = user()?->username ?? user()?->email ?? 'You';
                     @endphp
-                    <div class="flex gap-3">
-                        <div class="flex-shrink-0 h-8 w-8 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
-                            <x-filament::icon icon="tabler-user" class="h-4 w-4 text-primary-600 dark:text-primary-400" />
+                    <div style="display:flex;gap:12px;">
+                        <div style="flex-shrink:0;height:2rem;width:2rem;border-radius:9999px;background:var(--primary-100);display:flex;align-items:center;justify-content:center;">
+                            <x-filament::icon icon="tabler-user" style="height:1rem;width:1rem;color:var(--primary-600);" />
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-baseline gap-2 mb-1">
-                                <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $senderName }}</span>
+                        <div style="flex:1 1 0%;min-width:0;">
+                            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;">
+                                <span style="font-size:0.875rem;font-weight:600;color:var(--gray-900);">{{ $senderName }}</span>
                                 @if (!empty($this->ticket['date']))
-                                    <span class="text-xs text-gray-400 dark:text-gray-500">
+                                    <span style="font-size:0.75rem;color:var(--gray-400);">
                                         {{ \Carbon\Carbon::parse($this->ticket['date'])->format('d M Y, H:i') }}
                                     </span>
                                 @endif
                             </div>
-                            <div class="rounded-xl rounded-tl-none bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                            <div style="border-radius:12px 12px 12px 0;background:var(--gray-100);padding:12px 16px;font-size:0.875rem;color:var(--gray-800);white-space:pre-wrap;word-break:break-word;">
                                 {!! $this->linkify($this->ticket['message'] ?? '') !!}
                             </div>
                             @php
@@ -224,11 +216,11 @@
                                         @php
                                             $attUrl = $whmcsBase . '/downloads/ticket/' . $ticketC . '/' . $att['index'] . '/' . rawurlencode($att['filename']);
                                         @endphp
-                                        <a href="{{ $attUrl }}" target="_blank" rel="noopener"
-                                            style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid var(--gray-200);font-size:0.75rem;color:var(--gray-600);text-decoration:none;background:var(--white,#fff);"
-                                            onmouseover="this.style.background='var(--gray-50)'"
-                                            onmouseout="this.style.background='var(--white,#fff)'"
-                                        ><x-filament::icon icon="tabler-paperclip" style="width:0.875rem;height:0.875rem;" />{{ $att['filename'] }}</a>
+                                        <a href="{{ $attUrl }}" target="_blank" rel="noopener" class="sp-att-link"
+                                            style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid var(--gray-200);font-size:0.75rem;color:var(--gray-600);background:transparent;">
+                                            <x-filament::icon icon="tabler-paperclip" style="width:0.875rem;height:0.875rem;" />
+                                            {{ $att['filename'] }}
+                                        </a>
                                     @endforeach
                                 </div>
                             @endif
@@ -240,32 +232,32 @@
                 @php
                     $replies = $this->ticket['replies']['reply'] ?? [];
                     if (!empty($replies) && isset($replies['message'])) {
-                        $replies = [$replies]; // single reply normalisation
+                        $replies = [$replies];
                     }
                 @endphp
 
                 @foreach ($replies as $reply)
                     @php
-                        $isAdmin   = !empty($reply['admin']) || !empty($reply['adminid']);
-                        $name      = $reply['name'] ?? ($isAdmin ? 'Support Team' : (user()?->username ?? 'You'));
+                        $isAdmin = !empty($reply['admin']) || !empty($reply['adminid']);
+                        $name    = $reply['name'] ?? ($isAdmin ? 'Support Team' : (user()?->username ?? 'You'));
                     @endphp
-                    <div class="flex gap-3 {{ $isAdmin ? '' : 'flex-row-reverse' }}">
-                        <div class="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center {{ $isAdmin ? 'bg-gray-200 dark:bg-gray-700' : 'bg-primary-100 dark:bg-primary-900/40' }}">
+                    <div style="display:flex;gap:12px;{{ $isAdmin ? '' : 'flex-direction:row-reverse;' }}">
+                        <div style="flex-shrink:0;height:2rem;width:2rem;border-radius:9999px;{{ $isAdmin ? 'background:var(--gray-200);' : 'background:var(--primary-100);' }}display:flex;align-items:center;justify-content:center;">
                             <x-filament::icon
                                 icon="{{ $isAdmin ? 'tabler-headset' : 'tabler-user' }}"
-                                class="h-4 w-4 {{ $isAdmin ? 'text-gray-600 dark:text-gray-400' : 'text-primary-600 dark:text-primary-400' }}"
+                                style="height:1rem;width:1rem;color:{{ $isAdmin ? 'var(--gray-600)' : 'var(--primary-600)' }};"
                             />
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-baseline gap-2 mb-1 {{ $isAdmin ? '' : 'justify-end' }}">
-                                <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $name }}</span>
+                        <div style="flex:1 1 0%;min-width:0;">
+                            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;{{ $isAdmin ? '' : 'justify-content:flex-end;' }}">
+                                <span style="font-size:0.875rem;font-weight:600;color:var(--gray-900);">{{ $name }}</span>
                                 @if (!empty($reply['date']))
-                                    <span class="text-xs text-gray-400 dark:text-gray-500">
+                                    <span style="font-size:0.75rem;color:var(--gray-400);">
                                         {{ \Carbon\Carbon::parse($reply['date'])->format('d M Y, H:i') }}
                                     </span>
                                 @endif
                             </div>
-                            <div class="rounded-xl {{ $isAdmin ? 'rounded-tl-none bg-gray-100 dark:bg-gray-800' : 'rounded-tr-none bg-primary-50 dark:bg-primary-900/20' }} px-4 py-3 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                            <div style="{{ $isAdmin ? 'border-radius:12px 12px 12px 0;background:var(--gray-100);' : 'border-radius:12px 12px 0 12px;background:var(--primary-50);' }}padding:12px 16px;font-size:0.875rem;color:var(--gray-800);white-space:pre-wrap;word-break:break-word;">
                                 {!! $this->linkify($reply['message'] ?? '') !!}
                             </div>
                             @php
@@ -281,11 +273,11 @@
                                         @php
                                             $attUrl = $whmcsBase . '/downloads/ticket/' . $ticketC . '/' . $att['index'] . '/' . rawurlencode($att['filename']);
                                         @endphp
-                                        <a href="{{ $attUrl }}" target="_blank" rel="noopener"
-                                            style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid var(--gray-200);font-size:0.75rem;color:var(--gray-600);text-decoration:none;background:var(--white,#fff);"
-                                            onmouseover="this.style.background='var(--gray-50)'"
-                                            onmouseout="this.style.background='var(--white,#fff)'"
-                                        ><x-filament::icon icon="tabler-paperclip" style="width:0.875rem;height:0.875rem;" />{{ $att['filename'] }}</a>
+                                        <a href="{{ $attUrl }}" target="_blank" rel="noopener" class="sp-att-link"
+                                            style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid var(--gray-200);font-size:0.75rem;color:var(--gray-600);background:transparent;">
+                                            <x-filament::icon icon="tabler-paperclip" style="width:0.875rem;height:0.875rem;" />
+                                            {{ $att['filename'] }}
+                                        </a>
                                     @endforeach
                                 </div>
                             @endif
@@ -305,21 +297,15 @@
                 x-on:livewire-upload-start="uploading = true"
                 x-on:livewire-upload-finish="uploading = false"
                 x-on:livewire-upload-error="uploading = false"
-                class="space-y-4"
+                style="display:flex;flex-direction:column;gap:16px;"
             >
                 @error('replyMessage')
-                    <p class="text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p>
+                    <p style="font-size:0.875rem;color:var(--danger-600);">{{ $message }}</p>
                 @enderror
 
-                <textarea
-                    wire:model="replyMessage"
-                    rows="5"
-                    placeholder="Type your reply here…"
-                    class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 resize-y"
-                ></textarea>
+                <textarea wire:model="replyMessage" rows="5" placeholder="Type your reply here…" class="sp-textarea"></textarea>
 
-                {{-- Attachments --}}
-                <div class="space-y-1">
+                <div style="display:flex;flex-direction:column;gap:4px;">
                     <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">
                         Attachments
                         <span style="font-weight:400;color:var(--gray-400);">(optional, max 10 MB each)</span>
@@ -327,13 +313,8 @@
                     @error('replyAttachments.*')
                         <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
                     @enderror
-                    <input
-                        type="file"
-                        wire:model="replyAttachments"
-                        multiple
-                        x-on:change="fileCount = $event.target.files.length"
-                        style="display:block;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--gray-300);background:var(--white,#fff);font-size:0.875rem;color:var(--gray-700);cursor:pointer;"
-                    >
+                    <input type="file" wire:model="replyAttachments" multiple class="sp-file-input"
+                        x-on:change="fileCount = $event.target.files.length">
                     <p x-show="uploading" style="font-size:0.75rem;color:var(--warning-600);">
                         Uploading… please wait before sending.
                     </p>
@@ -342,13 +323,9 @@
                     </p>
                 </div>
 
-                <div class="flex justify-end">
-                    <x-filament::button
-                        icon="tabler-send"
-                        wire:click="submitReply"
-                        wire:loading.attr="disabled"
-                        x-bind:disabled="uploading"
-                    >
+                <div style="display:flex;justify-content:flex-end;">
+                    <x-filament::button icon="tabler-send" wire:click="submitReply"
+                        wire:loading.attr="disabled" x-bind:disabled="uploading">
                         <span x-show="!uploading">Send Reply</span>
                         <span x-show="uploading">Uploading…</span>
                     </x-filament::button>
@@ -360,13 +337,9 @@
     {{-- ── New ticket form ────────────────────────────────────────────── --}}
     {{-- ════════════════════════════════════════════════════════════════════ --}}
     @elseif ($this->currentView === 'create')
-        <div class="flex items-center gap-2 mb-1">
-            <x-filament::button
-                icon="tabler-arrow-left"
-                color="gray"
-                size="sm"
-                wire:click="backToList"
-            >
+
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <x-filament::button icon="tabler-arrow-left" color="gray" size="sm" wire:click="backToList">
                 {{ trans('server/support.back_to_tickets') }}
             </x-filament::button>
         </div>
@@ -374,82 +347,62 @@
         <x-filament::section>
             <x-slot name="heading">{{ trans('server/support.new_ticket') }}</x-slot>
 
-            <div class="space-y-5">
-
+            <div
+                x-data="{ uploading: false, fileCount: 0 }"
+                x-on:livewire-upload-start="uploading = true"
+                x-on:livewire-upload-finish="uploading = false"
+                x-on:livewire-upload-error="uploading = false"
+                style="display:flex;flex-direction:column;gap:20px;"
+            >
                 {{-- Subject --}}
-                <div class="space-y-1">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Subject</label>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                    <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">Subject</label>
                     @error('newSubject')
-                        <p class="text-xs text-danger-600 dark:text-danger-400">{{ $message }}</p>
+                        <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
                     @enderror
-                    <input
-                        type="text"
-                        wire:model="newSubject"
-                        placeholder="Brief description of your issue"
-                        class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400"
-                    >
+                    <input type="text" wire:model="newSubject"
+                        placeholder="Brief description of your issue" class="sp-input">
                 </div>
 
-                {{-- Department + Priority row --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                    {{-- Department --}}
-                    <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Department</label>
+                {{-- Department + Priority --}}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                        <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">Department</label>
                         @error('newDeptId')
-                            <p class="text-xs text-danger-600 dark:text-danger-400">{{ $message }}</p>
+                            <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
                         @enderror
-                        <select
-                            wire:model="newDeptId"
-                            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400"
-                        >
+                        <select wire:model="newDeptId" class="sp-select">
                             <option value="">Select department…</option>
                             @foreach ($this->departments as $dept)
                                 <option value="{{ $dept['id'] }}">{{ $dept['name'] }}</option>
                             @endforeach
                         </select>
                     </div>
-
-                    {{-- Priority --}}
-                    <div class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Priority</label>
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                        <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">Priority</label>
                         @error('newPriority')
-                            <p class="text-xs text-danger-600 dark:text-danger-400">{{ $message }}</p>
+                            <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
                         @enderror
-                        <select
-                            wire:model="newPriority"
-                            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400"
-                        >
+                        <select wire:model="newPriority" class="sp-select">
                             <option value="Low">Low</option>
                             <option value="Medium" selected>Medium</option>
                             <option value="High">High</option>
                         </select>
                     </div>
-
                 </div>
 
                 {{-- Message --}}
-                <div class="space-y-1">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Message</label>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                    <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">Message</label>
                     @error('newMessage')
-                        <p class="text-xs text-danger-600 dark:text-danger-400">{{ $message }}</p>
+                        <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
                     @enderror
-                    <textarea
-                        wire:model="newMessage"
-                        rows="7"
-                        placeholder="Describe your issue in detail…"
-                        class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 resize-y"
-                    ></textarea>
+                    <textarea wire:model="newMessage" rows="7"
+                        placeholder="Describe your issue in detail…" class="sp-textarea"></textarea>
                 </div>
 
                 {{-- Attachments --}}
-                <div
-                    x-data="{ uploading: false, fileCount: 0 }"
-                    x-on:livewire-upload-start="uploading = true"
-                    x-on:livewire-upload-finish="uploading = false"
-                    x-on:livewire-upload-error="uploading = false"
-                    class="space-y-1"
-                >
+                <div style="display:flex;flex-direction:column;gap:4px;">
                     <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">
                         Attachments
                         <span style="font-weight:400;color:var(--gray-400);">(optional, max 10 MB each)</span>
@@ -457,13 +410,8 @@
                     @error('newAttachments.*')
                         <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
                     @enderror
-                    <input
-                        type="file"
-                        wire:model="newAttachments"
-                        multiple
-                        x-on:change="fileCount = $event.target.files.length"
-                        style="display:block;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--gray-300);background:var(--white,#fff);font-size:0.875rem;color:var(--gray-700);cursor:pointer;"
-                    >
+                    <input type="file" wire:model="newAttachments" multiple class="sp-file-input"
+                        x-on:change="fileCount = $event.target.files.length">
                     <p x-show="uploading" style="font-size:0.75rem;color:var(--warning-600);">
                         Uploading… please wait before sending.
                     </p>
@@ -472,24 +420,13 @@
                     </p>
                 </div>
 
-                <div class="flex justify-end">
-                    <div
-                        x-data="{ uploading: false }"
-                        x-on:livewire-upload-start="uploading = true"
-                        x-on:livewire-upload-finish="uploading = false"
-                        x-on:livewire-upload-error="uploading = false"
-                    >
-                    <x-filament::button
-                        icon="tabler-send"
-                        wire:click="submitNewTicket"
-                        wire:loading.attr="disabled"
-                        x-bind:disabled="uploading"
-                    >
+                <div style="display:flex;justify-content:flex-end;">
+                    <x-filament::button icon="tabler-send" wire:click="submitNewTicket"
+                        wire:loading.attr="disabled" x-bind:disabled="uploading">
                         <span x-show="!uploading">Submit Ticket</span>
                         <span x-show="uploading">Uploading…</span>
                     </x-filament::button>
-                    </div>{{-- /uploading guard --}}
-                </div>{{-- /flex justify-end --}}
+                </div>
 
             </div>
         </x-filament::section>
