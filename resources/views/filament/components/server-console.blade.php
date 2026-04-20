@@ -63,107 +63,74 @@
         <div x-show="panelVisible">
 
             @if ($panelType === 'rust')
-            {{-- ── Rust: interactive world map ── --}}
+            {{-- ── Rust: interactive world map (pure PHP/CSS, no Alpine) ── --}}
             @php
                 $rustMonuments = $panelData['monuments'] ?? [];
                 $rustStats     = $panelData['stats'] ?? [];
                 $rustMapSize   = (int) ($panelData['size'] ?? 3500);
+                $tierColors    = ['danger' => '#ef4444', 'medium' => '#f59e0b', 'safe' => '#22c55e', 'minor' => '#9ca3af'];
             @endphp
-            <div
-                x-data="{
-                    showMarkers: true,
-                    hovered: null,
-                    mapSize: {{ $rustMapSize }},
-                    monuments: @json($rustMonuments),
-                    tierColor(tier) {
-                        const c = { danger: '#ef4444', medium: '#f59e0b', safe: '#22c55e', minor: '#9ca3af' };
-                        return c[tier] ?? '#9ca3af';
-                    },
-                    pinLeft(x) { return ((x + this.mapSize / 2) / this.mapSize * 100).toFixed(3) + '%'; },
-                    pinTop(y)  { return ((this.mapSize / 2 - y) / this.mapSize * 100).toFixed(3) + '%'; }
-                }"
-                class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden"
-            >
+
+            <style>
+                .rm-pin:hover .rm-tip { display: block !important; }
+            </style>
+
+            <div class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden">
+
                 {{-- Header --}}
                 <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
                     <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">World Map</span>
-                    <div class="flex items-center gap-3 shrink-0">
-                        @if ($panelData['seed'] ?? '')
-                            <span class="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
-                                Seed: {{ $panelData['seed'] }} - Size: {{ $panelData['size'] }}
-                            </span>
-                        @endif
-                        @if (!empty($rustMonuments))
-                            <button
-                                x-on:click="showMarkers = !showMarkers"
-                                class="text-xs px-2 py-0.5 rounded transition-colors"
-                                :class="showMarkers
-                                    ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-400'
-                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'"
-                            ><span x-text="showMarkers ? 'Markers on' : 'Markers off'"></span></button>
-                        @endif
-                    </div>
+                    @if ($panelData['seed'] ?? '')
+                        <span class="text-xs text-gray-400 dark:text-gray-500 tabular-nums shrink-0">
+                            Seed: {{ $panelData['seed'] }} - Size: {{ $panelData['size'] }}
+                        </span>
+                    @endif
                 </div>
 
                 @if ($panelData['imageUrl'] ?? null)
-                    {{-- Map image with monument pin overlay --}}
-                    <div class="relative" style="line-height:0">
+
+                    {{-- Map + pin overlay --}}
+                    <div style="position:relative; line-height:0; display:block;">
                         <a href="{{ $panelData['pageUrl'] }}" target="_blank" rel="noopener noreferrer">
                             <img
                                 src="{{ $panelData['imageUrl'] }}"
                                 alt="World Map"
-                                class="w-full block"
+                                style="width:100%; display:block;"
                                 loading="lazy"
                             >
                         </a>
 
-                        {{-- Overlay: transparent layer for pins --}}
-                        <div class="absolute inset-0" style="pointer-events:none">
-                            <template x-if="showMarkers">
-                                <div class="absolute inset-0">
-                                    <template x-for="(mon, idx) in monuments" :key="idx">
-                                        <div
-                                            class="absolute"
-                                            :style="'left:' + pinLeft(mon.x) + ';top:' + pinTop(mon.y) + ';transform:translate(-50%,-50%);pointer-events:auto;cursor:default;z-index:10'"
-                                            x-on:mouseenter="hovered = idx"
-                                            x-on:mouseleave="hovered = null"
-                                            x-on:click.stop.prevent
-                                        >
-                                            {{-- Pin dot --}}
-                                            <div
-                                                class="rounded-full shadow-md"
-                                                :style="'width:9px;height:9px;background:' + tierColor(mon.tier) + ';border:1.5px solid rgba(255,255,255,0.8)'"
-                                            ></div>
-                                            {{-- Tooltip --}}
-                                            <div
-                                                x-show="hovered === idx"
-                                                x-transition.opacity
-                                                class="absolute bottom-full left-1/2 mb-1.5 px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg"
-                                                style="transform:translateX(-50%);background:rgba(15,23,42,0.93);color:#f1f5f9;pointer-events:none;z-index:50"
-                                                x-text="mon.name"
-                                            ></div>
-                                        </div>
-                                    </template>
+                        {{-- Pin overlay --}}
+                        <div style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">
+                            @foreach ($rustMonuments as $mon)
+                                @php
+                                    $pinLeft  = number_format(($mon['x'] + $rustMapSize / 2) / $rustMapSize * 100, 3);
+                                    $pinTop   = number_format(($rustMapSize / 2 - $mon['y']) / $rustMapSize * 100, 3);
+                                    $pinColor = $tierColors[$mon['tier']] ?? '#9ca3af';
+                                @endphp
+                                <div
+                                    class="rm-pin"
+                                    style="position:absolute; left:{{ $pinLeft }}%; top:{{ $pinTop }}%; transform:translate(-50%,-50%); pointer-events:auto; cursor:default; z-index:10;"
+                                >
+                                    <div style="width:9px; height:9px; border-radius:50%; background:{{ $pinColor }}; border:1.5px solid rgba(255,255,255,0.85); box-shadow:0 1px 3px rgba(0,0,0,0.5);"></div>
+                                    <div
+                                        class="rm-tip"
+                                        style="display:none; position:absolute; bottom:100%; left:50%; transform:translateX(-50%); margin-bottom:5px; padding:3px 8px; border-radius:4px; background:rgba(15,23,42,0.93); color:#f1f5f9; font-size:11px; font-weight:500; white-space:nowrap; pointer-events:none; z-index:50; box-shadow:0 2px 8px rgba(0,0,0,0.4);"
+                                    >{{ $mon['name'] }}</div>
                                 </div>
-                            </template>
+                            @endforeach
                         </div>
                     </div>
 
                     {{-- Legend & stats --}}
-                    <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 space-y-2.5">
+                    <div style="padding:12px 16px; border-top:1px solid rgb(229,231,235); background:rgba(249,250,251,0.8);" class="dark:border-gray-700 dark:bg-gray-800/60 space-y-2">
 
                         {{-- Tier legend --}}
                         @if (!empty($rustMonuments))
-                            <div class="flex flex-wrap gap-x-4 gap-y-1">
-                                @foreach ([
-                                    ['danger', '#ef4444', 'High-tier'],
-                                    ['medium', '#f59e0b', 'Mid-tier'],
-                                    ['safe',   '#22c55e', 'Safe zone'],
-                                    ['minor',  '#9ca3af', 'Minor'],
-                                ] as [$tier, $color, $label])
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                              style="background:{{ $color }};border:1.5px solid rgba(255,255,255,0.5)"></span>
+                            <div style="display:flex; flex-wrap:wrap; gap:8px 16px;">
+                                @foreach (['danger' => ['#ef4444','High-tier'], 'medium' => ['#f59e0b','Mid-tier'], 'safe' => ['#22c55e','Safe zone'], 'minor' => ['#9ca3af','Minor']] as $tier => [$color, $label])
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:{{ $color }}; border:1.5px solid rgba(255,255,255,0.5); flex-shrink:0;"></span>
                                         <span class="text-xs text-gray-500 dark:text-gray-400">{{ $label }}</span>
                                     </div>
                                 @endforeach
@@ -172,17 +139,12 @@
 
                         {{-- Map stats --}}
                         @if (!empty($rustStats))
-                            <div class="grid grid-cols-2 gap-x-6 gap-y-1">
-                                @foreach ([
-                                    ['totalMonuments', 'Monuments'],
-                                    ['landPercentage', 'Land'],
-                                    ['rivers',         'Rivers'],
-                                    ['mountains',      'Mountains'],
-                                ] as [$key, $label])
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px 24px;">
+                                @foreach ([['totalMonuments','Monuments'],['landPercentage','Land'],['mountains','Mountains']] as [$key, $label])
                                     @if ($rustStats[$key] ?? 0)
-                                        <div class="flex justify-between gap-2">
+                                        <div style="display:flex; justify-content:space-between; gap:8px;">
                                             <span class="text-xs text-gray-500 dark:text-gray-400">{{ $label }}</span>
-                                            <span class="text-xs font-medium text-gray-700 dark:text-gray-200 tabular-nums">
+                                            <span class="text-xs font-medium text-gray-700 dark:text-gray-200" style="font-variant-numeric:tabular-nums;">
                                                 {{ $rustStats[$key] }}{{ $key === 'landPercentage' ? '%' : '' }}
                                             </span>
                                         </div>
@@ -193,11 +155,11 @@
 
                         {{-- Biomes --}}
                         @if (!empty($rustStats['biomes']))
-                            <div class="pt-1 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-x-4 gap-y-1">
+                            <div style="padding-top:6px; border-top:1px solid rgb(229,231,235); display:flex; flex-wrap:wrap; gap:4px 16px;" class="dark:border-gray-700">
                                 @foreach ($rustStats['biomes'] as $biome => $pct)
-                                    <div class="flex items-center gap-1">
+                                    <div style="display:flex; align-items:center; gap:4px;">
                                         <span class="text-xs text-gray-500 dark:text-gray-400">{{ ucfirst(strtolower($biome)) }}</span>
-                                        <span class="text-xs font-medium text-gray-700 dark:text-gray-200 tabular-nums">{{ $pct }}%</span>
+                                        <span class="text-xs font-medium text-gray-700 dark:text-gray-200" style="font-variant-numeric:tabular-nums;">{{ $pct }}%</span>
                                     </div>
                                 @endforeach
                             </div>
