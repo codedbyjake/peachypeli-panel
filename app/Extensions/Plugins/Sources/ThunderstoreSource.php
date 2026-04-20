@@ -22,65 +22,53 @@ class ThunderstoreSource implements PluginSourceInterface
 
     public function search(string $query): array
     {
-        $params = ['ordering' => 'most_downloaded'];
-
-        $q = trim($query);
-        if ($q !== '') {
-            $params['q'] = $q;
-        }
-
-        $packages = $this->fetchPage($params);
-
-        return $this->normalise(array_slice($packages, 0, 100));
+        return $this->fetchFirst50();
     }
 
     public function getFeatured(): array
     {
-        $packages = $this->fetchPage(['ordering' => 'most_downloaded']);
-
-        return $this->normalise(array_slice($packages, 0, 100));
+        return $this->fetchFirst50();
     }
 
     /**
-     * Fetch a single page from the community endpoint and return its package array.
-     * Handles both paginated { results: [...] } and flat [...] responses.
+     * Fetch the first page of the community endpoint and return at most 50 packages.
+     * Returns an empty array on any error — memory exhaustion, timeout, bad response.
      *
-     * @param  array<string, string>  $params
      * @return array<int, array<string, mixed>>
      */
-    private function fetchPage(array $params = []): array
+    private function fetchFirst50(): array
     {
-        $url      = self::BASE_URL . "/c/{$this->community}/api/v1/package/";
-        $response = Http::timeout(15)->connectTimeout(5)->get($url, $params);
+        try {
+            $url      = self::BASE_URL . "/c/{$this->community}/api/v1/package/";
+            $response = Http::timeout(10)->connectTimeout(5)->get($url);
 
-        if (!$response->successful()) {
-            Log::error('ThunderstoreSource: fetch failed', [
+            if (!$response->successful()) {
+                Log::error('ThunderstoreSource: fetch failed', [
+                    'community' => $this->community,
+                    'status'    => $response->status(),
+                ]);
+
+                return [];
+            }
+
+            $data = $response->json();
+
+            if (!is_array($data)) {
+                return [];
+            }
+
+            // Paginated DRF response: { results: [...] }
+            $packages = array_key_exists('results', $data) ? ($data['results'] ?? []) : $data;
+
+            return $this->normalise(array_slice($packages, 0, 50));
+        } catch (\Throwable $e) {
+            Log::error('ThunderstoreSource: fetch threw exception', [
                 'community' => $this->community,
-                'url'       => $url,
-                'params'    => $params,
-                'status'    => $response->status(),
+                'error'     => $e->getMessage(),
             ]);
 
             return [];
         }
-
-        $data = $response->json();
-
-        if (!is_array($data)) {
-            Log::error('ThunderstoreSource: unexpected response format', [
-                'community' => $this->community,
-            ]);
-
-            return [];
-        }
-
-        // Paginated DRF response: { next, previous, results: [...] }
-        if (array_key_exists('results', $data)) {
-            return $data['results'] ?? [];
-        }
-
-        // Flat array (non-paginated endpoint variant)
-        return $data;
     }
 
     public function getLatestVersion(string $pluginId): ?array
