@@ -11,6 +11,7 @@ use App\Services\Nodes\NodeJWTService;
 use App\Services\Servers\GetUserPermissionsService;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Http;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Session;
 
@@ -137,5 +138,122 @@ class ServerConsole extends Widget
             ->body(trans('server/console.websocket_error.body'))
             ->danger()
             ->send();
+    }
+
+    public function getGamePanelType(): string
+    {
+        $egg = $this->server?->egg;
+        if (!$egg) {
+            return 'none';
+        }
+
+        $name     = strtolower($egg->name ?? '');
+        $tags     = array_map('strtolower', $egg->tags ?? []);
+        $features = array_map('strtolower', $egg->inherit_features ?? $egg->features ?? []);
+
+        if (str_contains($name, 'rust') || in_array('rust', $tags)) {
+            return 'rust';
+        }
+
+        if (str_contains($name, 'ark') || in_array('ark', $tags)) {
+            return 'ark';
+        }
+
+        if (
+            str_contains($name, 'minecraft') ||
+            in_array('minecraft_java', $features) ||
+            in_array('minecraft_bedrock', $features) ||
+            in_array('minecraft', $tags)
+        ) {
+            return 'minecraft';
+        }
+
+        return 'none';
+    }
+
+    public function getGamePanelData(): array
+    {
+        return match ($this->getGamePanelType()) {
+            'rust'      => $this->buildRustPanelData(),
+            'ark'       => $this->buildArkPanelData(),
+            'minecraft' => ['address' => $this->server?->allocation?->address ?? ''],
+            default     => [],
+        };
+    }
+
+    private function getServerVariable(string $name): ?string
+    {
+        $variable = $this->server?->variables?->firstWhere('env_variable', $name);
+        if (!$variable) {
+            return null;
+        }
+        $value = (string) ($variable->server_value ?? $variable->default_value ?? '');
+
+        return $value !== '' ? $value : null;
+    }
+
+    private function buildRustPanelData(): array
+    {
+        $seed = $this->getServerVariable('WORLD_SEED') ?? '';
+        $size = $this->getServerVariable('WORLD_SIZE') ?? '3500';
+
+        if (!$seed) {
+            return ['seed' => '', 'size' => $size, 'imageUrl' => null, 'pageUrl' => null];
+        }
+
+        $pageUrl  = "https://rustmaps.com/map/{$size}/{$seed}";
+        $imageUrl = null;
+
+        $apiKey = config('services.rustmaps.key');
+        if ($apiKey) {
+            $cacheKey = "rustmap.{$size}.{$seed}";
+            $data     = cache()->remember($cacheKey, now()->addHours(24), function () use ($seed, $size, $apiKey) {
+                $response = Http::withHeaders(['Authorization' => "Bearer {$apiKey}"])
+                    ->timeout(8)
+                    ->get("https://rustmaps.com/api/v2/maps/{$size}/{$seed}");
+
+                return $response->ok() ? $response->json() : null;
+            });
+
+            if ($data) {
+                $imageUrl = $data['imageUrl'] ?? null;
+                $pageUrl  = $data['url'] ?? $pageUrl;
+            }
+        }
+
+        return compact('seed', 'size', 'imageUrl', 'pageUrl');
+    }
+
+    private function buildArkPanelData(): array
+    {
+        $mapVar = $this->getServerVariable('LEVEL') ?? $this->getServerVariable('MAP') ?? '';
+        $key    = strtolower($mapVar);
+
+        $maps = [
+            'theisland'       => ['name' => 'The Island',      'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/346110/header.jpg'],
+            'scorchedearth_p' => ['name' => 'Scorched Earth',  'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/375351/header.jpg'],
+            'aberration_p'    => ['name' => 'Aberration',      'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/708770/header.jpg'],
+            'extinction'      => ['name' => 'Extinction',      'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/887380/header.jpg'],
+            'genesis'         => ['name' => 'Genesis: Part 1', 'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/1113660/header.jpg'],
+            'genesis2'        => ['name' => 'Genesis: Part 2', 'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/1356540/header.jpg'],
+            'crystalisles'    => ['name' => 'Crystal Isles',   'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/1100810/header.jpg'],
+            'valguero_p'      => ['name' => 'Valguero',        'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/1184480/header.jpg'],
+            'ragnarokv2'      => ['name' => 'Ragnarok',        'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/816670/header.jpg'],
+            'ragnarok'        => ['name' => 'Ragnarok',        'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/816670/header.jpg'],
+            'bobsmissions_wp' => ['name' => 'Lost Island',     'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/1887560/header.jpg'],
+            'fjordur'         => ['name' => 'Fjordur',         'image' => 'https://cdn.akamai.steamstatic.com/steam/apps/1891780/header.jpg'],
+        ];
+
+        $matched = $maps[$key] ?? null;
+        if (!$matched) {
+            foreach ($maps as $mKey => $mData) {
+                if ($key && (str_contains($key, $mKey) || str_contains($mKey, $key))) {
+                    $matched = $mData;
+                    break;
+                }
+            }
+        }
+
+        return $matched ?? ['name' => ucwords(str_replace('_', ' ', $mapVar)), 'image' => null];
     }
 }

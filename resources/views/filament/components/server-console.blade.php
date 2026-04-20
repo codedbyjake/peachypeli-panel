@@ -17,27 +17,202 @@
     @vite(['resources/js/console.js', 'resources/css/console.css'])
     @endassets
 
-    <div id="terminal" wire:ignore></div>
+    @php
+        $panelType = $this->getGamePanelType();
+        $panelData = $this->getGamePanelData();
+        $hasPanel  = $panelType !== 'none';
+    @endphp
 
-    @if ($this->authorizeSendCommand())
-        <div class="flex items-center w-full border-top overflow-hidden dark:bg-gray-900"
-             style="border-bottom-right-radius: 10px; border-bottom-left-radius: 10px;">
-            <x-filament::icon
-                icon="tabler-chevrons-right"
-            />
-            <input
-                id="send-command"
-                class="w-full focus:outline-none focus:ring-0 border-none dark:bg-gray-900 p-1"
-                type="text"
-                :readonly="{{ $this->canSendCommand() ? 'false' : 'true' }}"
-                title="{{ $this->canSendCommand() ? '' : trans('server/console.command_blocked_title') }}"
-                placeholder="{{ $this->canSendCommand() ? trans('server/console.command') : trans('server/console.command_blocked') }}"
-                wire:model="input"
-                wire:keydown.enter="enter"
-                wire:keydown.up.prevent="up"
-                wire:keydown.down="down"
-            >
+    @if ($hasPanel)
+    <div
+        x-data="{ panelVisible: true }"
+        @collapse-game-panel.window="panelVisible = false"
+        style="display:grid;grid-template-columns:1fr 360px;gap:1rem;align-items:start"
+        :style="panelVisible ? 'display:grid;grid-template-columns:1fr 360px;gap:1rem;align-items:start' : ''"
+    >
+    @endif
+
+        {{-- ── Console (left column) ── --}}
+        <div>
+            <div id="terminal" wire:ignore></div>
+
+            @if ($this->authorizeSendCommand())
+                <div class="flex items-center w-full border-top overflow-hidden dark:bg-gray-900"
+                     style="border-bottom-right-radius: 10px; border-bottom-left-radius: 10px;">
+                    <x-filament::icon
+                        icon="tabler-chevrons-right"
+                    />
+                    <input
+                        id="send-command"
+                        class="w-full focus:outline-none focus:ring-0 border-none dark:bg-gray-900 p-1"
+                        type="text"
+                        :readonly="{{ $this->canSendCommand() ? 'false' : 'true' }}"
+                        title="{{ $this->canSendCommand() ? '' : trans('server/console.command_blocked_title') }}"
+                        placeholder="{{ $this->canSendCommand() ? trans('server/console.command') : trans('server/console.command_blocked') }}"
+                        wire:model="input"
+                        wire:keydown.enter="enter"
+                        wire:keydown.up.prevent="up"
+                        wire:keydown.down="down"
+                    >
+                </div>
+            @endif
         </div>
+
+        {{-- ── Game panel (right column) ── --}}
+        @if ($hasPanel)
+        <div x-show="panelVisible">
+
+            @if ($panelType === 'rust')
+            {{-- ── Rust: world map via Rustmaps.com ── --}}
+            <div class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden">
+                <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
+                    <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">World Map</span>
+                    @if ($panelData['seed'] ?? '')
+                        <span class="text-xs text-gray-400 dark:text-gray-500 tabular-nums shrink-0">
+                            {{ $panelData['seed'] }} &middot; {{ $panelData['size'] }}
+                        </span>
+                    @endif
+                </div>
+
+                @if ($panelData['imageUrl'] ?? null)
+                    <a href="{{ $panelData['pageUrl'] }}" target="_blank" rel="noopener noreferrer" class="block">
+                        <img
+                            src="{{ $panelData['imageUrl'] }}"
+                            alt="World Map"
+                            class="w-full block"
+                            loading="lazy"
+                        >
+                    </a>
+                @elseif ($panelData['seed'] ?? '')
+                    <div class="p-5 flex flex-col items-center gap-3 text-center">
+                        <x-filament::icon icon="tabler-map" class="h-10 w-10 text-gray-300 dark:text-gray-600" />
+                        <div class="space-y-1">
+                            <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Seed: {{ $panelData['seed'] }}</p>
+                            <p class="text-xs text-gray-500">Size: {{ $panelData['size'] }}</p>
+                        </div>
+                        <a
+                            href="{{ $panelData['pageUrl'] }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                        >View on Rustmaps.com &rarr;</a>
+                        @if (!config('services.rustmaps.key'))
+                            <p class="text-xs text-gray-400 dark:text-gray-500">
+                                Set <code class="font-mono">RUSTMAPS_API_KEY</code> to show a map preview.
+                            </p>
+                        @endif
+                    </div>
+                @else
+                    <div class="p-5 text-sm text-gray-400 dark:text-gray-500 text-center">
+                        No world seed configured.
+                    </div>
+                @endif
+            </div>
+
+            @elseif ($panelType === 'ark')
+            {{-- ── ARK: static map image ── --}}
+            <div class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden">
+                <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                    <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Map</span>
+                </div>
+
+                @if ($panelData['image'] ?? null)
+                    <div class="relative">
+                        <img
+                            src="{{ $panelData['image'] }}"
+                            alt="{{ $panelData['name'] ?? 'ARK Map' }}"
+                            class="w-full block"
+                            loading="lazy"
+                            onerror="this.parentElement.style.display='none'"
+                        >
+                        @if ($panelData['name'] ?? '')
+                            <div class="absolute bottom-0 left-0 right-0 px-3 py-2"
+                                 style="background:linear-gradient(to top, rgba(0,0,0,.72) 0%, transparent 100%)">
+                                <p class="text-sm font-semibold text-white">{{ $panelData['name'] }}</p>
+                            </div>
+                        @endif
+                    </div>
+                @elseif ($panelData['name'] ?? '')
+                    <div class="p-5 text-center">
+                        <p class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ $panelData['name'] }}</p>
+                    </div>
+                @else
+                    <div class="p-5 text-sm text-gray-400 dark:text-gray-500 text-center">
+                        Map not detected.
+                    </div>
+                @endif
+            </div>
+
+            @elseif ($panelType === 'minecraft')
+            {{-- ── Minecraft: server icon from public status API ── --}}
+            <div
+                x-data="{
+                    icon:   null,
+                    motd:   null,
+                    loaded: false,
+                    failed: false
+                }"
+                x-init="
+                    fetch('https://api.mcsrvstat.us/3/{{ e($panelData['address'] ?? '') }}')
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data && data.icon) {
+                                icon   = data.icon;
+                                motd   = (data.motd && data.motd.clean && data.motd.clean[0]) ? data.motd.clean[0] : null;
+                                loaded = true;
+                            } else {
+                                failed = true;
+                                $dispatch('collapse-game-panel');
+                            }
+                        })
+                        .catch(() => {
+                            failed = true;
+                            $dispatch('collapse-game-panel');
+                        })
+                "
+            >
+                {{-- Loading state --}}
+                <template x-if="!loaded && !failed">
+                    <div class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 p-5 flex items-center justify-center gap-2">
+                        <x-filament::loading-indicator class="h-4 w-4 text-gray-400" />
+                        <span class="text-sm text-gray-400">Loading server info&hellip;</span>
+                    </div>
+                </template>
+
+                {{-- Icon loaded --}}
+                <template x-if="loaded">
+                    <div class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden">
+                        <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                            <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Server Info</span>
+                        </div>
+                        <div class="p-5 flex flex-col items-center gap-3 text-center">
+                            <img
+                                :src="icon"
+                                alt="Server Icon"
+                                class="rounded-lg shadow-md"
+                                style="width:64px;height:64px;image-rendering:pixelated"
+                            >
+                            <div class="space-y-1">
+                                <p
+                                    x-show="motd"
+                                    x-text="motd"
+                                    class="text-sm font-medium text-gray-700 dark:text-gray-200 max-w-full truncate"
+                                ></p>
+                                <p class="text-xs text-gray-400 dark:text-gray-500 font-mono">
+                                    {{ $panelData['address'] ?? '' }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            @endif
+
+        </div>
+        @endif
+
+    @if ($hasPanel)
+    </div>
     @endif
 
     @script
@@ -100,6 +275,11 @@
 
         window.addEventListener('resize', () => {
             fitAddon.fit();
+        });
+
+        // Re-fit when the game panel collapses so the console fills the full width.
+        window.addEventListener('collapse-game-panel', () => {
+            setTimeout(() => fitAddon.fit(), 50);
         });
 
         terminal.attachCustomKeyEventHandler((event) => {
