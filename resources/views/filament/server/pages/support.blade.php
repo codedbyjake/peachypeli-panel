@@ -1,20 +1,24 @@
 <x-filament-panels::page>
 
     @php
-        $statusColors = [
-            'open'            => 'bg-warning-100 text-warning-700 dark:bg-warning-400/15 dark:text-warning-400',
-            'answered'        => 'bg-success-100 text-success-700 dark:bg-success-400/15 dark:text-success-400',
-            'customer-reply'  => 'bg-primary-100 text-primary-700 dark:bg-primary-400/15 dark:text-primary-400',
-            'closed'          => 'bg-gray-100 text-gray-600 dark:bg-gray-400/15 dark:text-gray-400',
-            'on hold'         => 'bg-warning-100 text-warning-700 dark:bg-warning-400/15 dark:text-warning-400',
-        ];
-        $priorityColors = [
-            'high'   => 'bg-danger-100 text-danger-700 dark:bg-danger-400/15 dark:text-danger-400',
-            'medium' => 'bg-warning-100 text-warning-700 dark:bg-warning-400/15 dark:text-warning-400',
-            'low'    => 'bg-gray-100 text-gray-600 dark:bg-gray-400/15 dark:text-gray-400',
-        ];
-        $statusClass   = fn($s) => $statusColors[strtolower($s)] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-400/15 dark:text-gray-400';
-        $priorityClass = fn($p) => $priorityColors[strtolower($p)] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-400/15 dark:text-gray-400';
+        $statusColor = function(string $s): string {
+            return match (strtolower($s)) {
+                'open'            => 'warning',
+                'answered'        => 'success',
+                'customer-reply'  => 'primary',
+                'on hold'         => 'warning',
+                'closed'          => 'gray',
+                default           => 'gray',
+            };
+        };
+        $priorityColor = function(string $p): string {
+            return match (strtolower($p)) {
+                'high'   => 'danger',
+                'medium' => 'warning',
+                'low'    => 'gray',
+                default  => 'gray',
+            };
+        };
     @endphp
 
     {{-- ── Loading ───────────────────────────────────────────────────────── --}}
@@ -66,55 +70,74 @@
             </x-slot>
 
             @if (empty($this->tickets))
-                <p class="text-sm text-gray-500 dark:text-gray-400 py-4">
-                    {{ trans('server/support.no_tickets') }}
-                </p>
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:48px 0;text-align:center;">
+                    <x-filament::icon icon="tabler-ticket" style="width:2.5rem;height:2.5rem;color:var(--gray-300);" />
+                    <p style="font-size:0.875rem;color:var(--gray-500);">{{ trans('server/support.no_tickets') }}</p>
+                </div>
             @else
-                {{-- Table header --}}
-                <div class="hidden sm:grid grid-cols-12 gap-3 px-1 pb-2 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-800">
-                    <div class="col-span-1">#</div>
-                    <div class="col-span-4">Subject</div>
-                    <div class="col-span-2">Status</div>
-                    <div class="col-span-2">Department</div>
-                    <div class="col-span-2">Priority</div>
-                    <div class="col-span-1 text-right">Updated</div>
+                {{-- Column headers --}}
+                <div style="display:grid;grid-template-columns:80px 1fr 120px 140px 90px 100px;gap:12px;padding:0 4px 10px;border-bottom:1px solid var(--gray-200);margin-bottom:4px;">
+                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">#</span>
+                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">Subject</span>
+                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">Status</span>
+                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">Department</span>
+                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">Priority</span>
+                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);text-align:right;">Updated</span>
                 </div>
 
-                <div class="divide-y divide-gray-100 dark:divide-gray-800">
-                    @foreach ($this->tickets as $t)
-                        <button
-                            class="w-full text-left grid grid-cols-12 gap-3 px-1 py-3 items-center hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors"
-                            wire:click="viewTicket({{ (int) $t['id'] }})"
-                        >
-                            <div class="col-span-1 text-xs font-mono text-gray-400 dark:text-gray-500 truncate">
-                                {{ $t['tid'] ?? $t['id'] ?? '—' }}
-                            </div>
-                            <div class="col-span-4 text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                                {{ $t['subject'] ?? '—' }}
-                            </div>
-                            <div class="col-span-2">
-                                <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium {{ $statusClass($t['status'] ?? '') }}">
-                                    {{ $t['status'] ?? '—' }}
-                                </span>
-                            </div>
-                            <div class="col-span-2 text-xs text-gray-500 dark:text-gray-400 truncate">
-                                {{ $t['dept'] ?? $t['department'] ?? '—' }}
-                            </div>
-                            <div class="col-span-2">
-                                <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium {{ $priorityClass($t['priority'] ?? '') }}">
-                                    {{ $t['priority'] ?? '—' }}
-                                </span>
-                            </div>
-                            <div class="col-span-1 text-xs text-gray-400 dark:text-gray-500 text-right whitespace-nowrap">
-                                @if (!empty($t['lastreply']))
-                                    {{ \Carbon\Carbon::parse($t['lastreply'])->diffForHumans() }}
-                                @elseif (!empty($t['date']))
-                                    {{ \Carbon\Carbon::parse($t['date'])->diffForHumans() }}
-                                @endif
-                            </div>
-                        </button>
-                    @endforeach
-                </div>
+                {{-- Ticket rows --}}
+                @foreach ($this->tickets as $t)
+                    <button
+                        wire:click="viewTicket({{ (int) ($t['id'] ?? 0) }})"
+                        style="display:grid;grid-template-columns:80px 1fr 120px 140px 90px 100px;gap:12px;width:100%;text-align:left;padding:10px 4px;align-items:center;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:background 150ms ease;"
+                        onmouseover="this.style.background='var(--gray-50)'"
+                        onmouseout="this.style.background='transparent'"
+                    >
+                        {{-- Ticket ref --}}
+                        <span style="font-size:0.75rem;font-family:monospace;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                            {{ $t['tid'] ?? $t['id'] ?? '—' }}
+                        </span>
+
+                        {{-- Subject --}}
+                        <span style="font-size:0.875rem;font-weight:500;color:var(--gray-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                            {{ $t['subject'] ?? '—' }}
+                        </span>
+
+                        {{-- Status badge --}}
+                        <div>
+                            <x-filament::badge :color="$statusColor($t['status'] ?? '')">
+                                {{ ucfirst($t['status'] ?? '—') }}
+                            </x-filament::badge>
+                        </div>
+
+                        {{-- Department --}}
+                        <span style="font-size:0.8rem;color:var(--gray-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                            {{ $t['dept'] ?? $t['department'] ?? '—' }}
+                        </span>
+
+                        {{-- Priority badge --}}
+                        <div>
+                            <x-filament::badge :color="$priorityColor($t['priority'] ?? '')">
+                                {{ ucfirst($t['priority'] ?? '—') }}
+                            </x-filament::badge>
+                        </div>
+
+                        {{-- Last updated --}}
+                        <span style="font-size:0.75rem;color:var(--gray-400);text-align:right;white-space:nowrap;">
+                            @if (!empty($t['lastreply']))
+                                {{ \Carbon\Carbon::parse($t['lastreply'])->diffForHumans() }}
+                            @elseif (!empty($t['date']))
+                                {{ \Carbon\Carbon::parse($t['date'])->diffForHumans() }}
+                            @else
+                                —
+                            @endif
+                        </span>
+                    </button>
+
+                    @if (!$loop->last)
+                        <div style="border-bottom:1px solid var(--gray-100);margin:0 4px;"></div>
+                    @endif
+                @endforeach
             @endif
         </x-filament::section>
 
@@ -145,14 +168,14 @@
                 </div>
             </x-slot>
 
-            <x-slot name="headerEnd">
-                <div class="flex items-center gap-2">
-                    <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium {{ $statusClass($this->ticket['status'] ?? '') }}">
-                        {{ $this->ticket['status'] ?? '—' }}
-                    </span>
-                    <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium {{ $priorityClass($this->ticket['priority'] ?? '') }}">
-                        {{ $this->ticket['priority'] ?? '—' }}
-                    </span>
+            <x-slot name="afterHeader">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <x-filament::badge :color="$statusColor($this->ticket['status'] ?? '')">
+                        {{ ucfirst($this->ticket['status'] ?? '—') }}
+                    </x-filament::badge>
+                    <x-filament::badge :color="$priorityColor($this->ticket['priority'] ?? '')">
+                        {{ ucfirst($this->ticket['priority'] ?? '—') }}
+                    </x-filament::badge>
                 </div>
             </x-slot>
 
