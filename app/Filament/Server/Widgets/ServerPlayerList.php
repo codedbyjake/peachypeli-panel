@@ -79,6 +79,55 @@ class ServerPlayerList extends Widget
         return 'unknown';
     }
 
+    public function queryValheimViaSourceQuery(): void
+    {
+        $host = $this->server?->allocation?->alias ?? $this->server?->allocation?->ip;
+
+        // Prefer QUERY_PORT egg variable; fall back to the primary allocation port.
+        $queryPort = null;
+        foreach ($this->server?->variables ?? [] as $variable) {
+            if ($variable->env_variable === 'QUERY_PORT') {
+                $queryPort = (int) ($variable->server_value ?? $variable->default_value ?? 0) ?: null;
+                break;
+            }
+        }
+        $queryPort ??= $this->server?->allocation?->port;
+
+        if (!$host || !$queryPort) {
+            $this->available = false;
+            $this->loaded    = true;
+            return;
+        }
+
+        $query = new \xPaw\SourceQuery\SourceQuery();
+        try {
+            $query->Connect($host, $queryPort, 3, \xPaw\SourceQuery\SourceQuery::SOURCE);
+            $info       = $query->GetInfo();
+            $rawPlayers = $query->GetPlayers();
+
+            $this->maxPlayers  = (int) ($info['MaxPlayers'] ?? 0);
+            $this->players     = array_values(array_filter(
+                array_map(fn ($p) => ['name' => $p['Name'] ?? ''], $rawPlayers ?? []),
+                fn ($p) => $p['name'] !== ''
+            ));
+            $this->playerCount = count($this->players);
+            $this->available   = true;
+            $this->loaded      = true;
+
+            $this->dispatch('player-list-update',
+                players:   $this->players,
+                count:     $this->playerCount,
+                max:       $this->maxPlayers,
+                available: true,
+            );
+        } catch (\Exception) {
+            $this->available = false;
+            $this->loaded    = true;
+        } finally {
+            $query->Disconnect();
+        }
+    }
+
     public function queryArkViaSourceQuery(): void
     {
         $host = $this->server?->allocation?->alias ?? $this->server?->allocation?->ip;
