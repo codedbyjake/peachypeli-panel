@@ -17,7 +17,7 @@ class NoNodesWidget extends FormWidget
 
     public static function canView(): bool
     {
-        return Node::count() <= 0;
+        return false;
     }
 
     /**

@@ -14,6 +14,8 @@ class UpdateWidget extends FormWidget
 {
     protected static ?int $sort = 0;
 
+    public static function canView(): bool { return false; }
+
     private SoftwareVersionService $softwareVersionService;
 
     public function mount(SoftwareVersionService $softwareVersionService): void

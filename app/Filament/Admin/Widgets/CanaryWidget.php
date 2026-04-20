@@ -15,7 +15,7 @@ class CanaryWidget extends FormWidget
 
     public static function canView(): bool
     {
-        return config('app.version') === 'canary';
+        return false;
     }
 
     /**

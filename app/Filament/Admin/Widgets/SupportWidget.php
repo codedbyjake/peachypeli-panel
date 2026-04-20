@@ -13,6 +13,8 @@ class SupportWidget extends FormWidget
 {
     protected static ?int $sort = 3;
 
+    public static function canView(): bool { return false; }
+
     /**
      * @throws Exception
      */

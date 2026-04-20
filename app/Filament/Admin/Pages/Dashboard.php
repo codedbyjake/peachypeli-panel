@@ -20,16 +20,16 @@ class Dashboard extends BaseDashboard
 
     public function getColumns(): int|array
     {
-        return 1;
+        return 4;
     }
 
     public function getHeading(): string
     {
-        return trans('admin/dashboard.heading');
+        return 'Welcome to Peachy Portal';
     }
 
     public function getSubheading(): string
     {
-        return trans('admin/dashboard.version', ['version' => $this->softwareVersionService->currentPanelVersion()]);
+        return 'Peachy Portal ' . $this->softwareVersionService->currentPanelVersion();
     }
 }
