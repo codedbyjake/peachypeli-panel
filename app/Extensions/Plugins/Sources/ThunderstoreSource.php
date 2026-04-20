@@ -4,10 +4,21 @@ namespace App\Extensions\Plugins\Sources;
 
 use App\Extensions\Plugins\PluginSourceInterface;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ThunderstoreSource implements PluginSourceInterface
 {
     private const BASE_URL = 'https://thunderstore.io';
+
+    // v1 /package/ returns the full catalogue (150 MB+ for large communities like Valheim).
+    // The experimental API supports pagination — always use it instead.
+    private const EXPERIMENTAL_URL = self::BASE_URL . '/api/experimental/package/';
+
+    // Hard limit: reject any response body larger than this before attempting json_decode.
+    private const MAX_RESPONSE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+    private const FEATURED_PAGE_SIZE = 20;
+    private const SEARCH_PAGE_SIZE   = 100;
 
     private string $community;
 
@@ -21,61 +32,84 @@ class ThunderstoreSource implements PluginSourceInterface
 
     public function search(string $query): array
     {
-        // Thunderstore v1 API does not support server-side search; fetch top packages and filter.
-        $response = Http::timeout(15)->connectTimeout(5)
-            ->get(self::BASE_URL . "/c/{$this->community}/api/v1/package/");
-
-        if (!$response->successful()) {
-            \Illuminate\Support\Facades\Log::error('ThunderstoreSource search failed', [
-                'community' => $this->community,
-                'status'    => $response->status(),
-            ]);
-
-            return [];
-        }
-
-        $packages = $response->json();
-        if (!is_array($packages)) {
-            return [];
-        }
-
         $query = strtolower(trim($query));
 
-        $filtered = array_filter($packages, function (array $p) use ($query): bool {
-            $name = strtolower($p['name'] ?? '');
-            $desc = strtolower($p['versions'][0]['description'] ?? '');
+        // Fetch a bounded set ordered by popularity; filter client-side on name/description.
+        $params = [
+            'community_identifier' => $this->community,
+            'ordering'             => '-total_downloads',
+            'page_size'            => self::SEARCH_PAGE_SIZE,
+        ];
 
-            return str_contains($name, $query) || str_contains($desc, $query);
-        });
+        $packages = $this->fetchPage($params, 'search');
+        if ($packages === null) {
+            return [];
+        }
 
-        usort($filtered, fn ($a, $b) => ($b['total_downloads'] ?? 0) <=> ($a['total_downloads'] ?? 0));
+        if ($query !== '') {
+            $packages = array_values(array_filter($packages, function (array $p) use ($query): bool {
+                $name = strtolower($p['name'] ?? '');
+                $desc = strtolower($p['latest']['description'] ?? $p['versions'][0]['description'] ?? '');
 
-        return $this->normalise(array_slice(array_values($filtered), 0, 20));
+                return str_contains($name, $query) || str_contains($desc, $query);
+            }));
+        }
+
+        return $this->normalise(array_slice($packages, 0, 20));
     }
 
     public function getFeatured(): array
     {
+        $params = [
+            'community_identifier' => $this->community,
+            'ordering'             => '-total_downloads',
+            'page_size'            => self::FEATURED_PAGE_SIZE,
+        ];
+
+        $packages = $this->fetchPage($params, 'getFeatured');
+        if ($packages === null) {
+            return [];
+        }
+
+        return $this->normalise($packages);
+    }
+
+    /**
+     * Fetch one page from the experimental API.
+     * Returns the results array, or null on any failure (logged internally).
+     *
+     * @param  array<string, mixed>  $params
+     * @return array<int, array<string, mixed>>|null
+     */
+    private function fetchPage(array $params, string $caller): ?array
+    {
         $response = Http::timeout(15)->connectTimeout(5)
-            ->get(self::BASE_URL . "/c/{$this->community}/api/v1/package/");
+            ->get(self::EXPERIMENTAL_URL, $params);
 
         if (!$response->successful()) {
-            \Illuminate\Support\Facades\Log::error('ThunderstoreSource getFeatured failed', [
+            Log::error("ThunderstoreSource {$caller} failed", [
                 'community' => $this->community,
                 'status'    => $response->status(),
             ]);
 
-            return [];
+            return null;
         }
 
-        $packages = $response->json();
-        if (!is_array($packages)) {
-            return [];
+        $size = strlen($response->body());
+        if ($size > self::MAX_RESPONSE_BYTES) {
+            Log::error("ThunderstoreSource {$caller}: response too large, refusing to parse", [
+                'community' => $this->community,
+                'bytes'     => $size,
+                'limit'     => self::MAX_RESPONSE_BYTES,
+            ]);
+
+            return null;
         }
 
-        // Sort by downloads descending and return top 20.
-        usort($packages, fn ($a, $b) => ($b['total_downloads'] ?? 0) <=> ($a['total_downloads'] ?? 0));
+        $data = $response->json();
 
-        return $this->normalise(array_slice($packages, 0, 20));
+        // Experimental API returns {next, previous, results:[...]}.
+        return $data['results'] ?? (is_array($data) ? $data : null);
     }
 
     public function getLatestVersion(string $pluginId): ?array
@@ -129,7 +163,8 @@ class ThunderstoreSource implements PluginSourceInterface
     {
         return array_values(array_map(function (array $p): array {
             $latestVersion = $p['latest'] ?? ($p['versions'][0] ?? []);
-            $namespace     = $p['owner'] ?? '';
+            // Experimental API uses 'namespace'; v1 used 'owner' — accept both.
+            $namespace     = $p['namespace'] ?? $p['owner'] ?? '';
             $name          = $p['name'] ?? 'Unknown';
             $pluginId      = "{$namespace}-{$name}";
 
