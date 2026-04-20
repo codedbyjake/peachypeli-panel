@@ -29,6 +29,8 @@ class Support extends Page
     // ── View state ───────────────────────────────────────────────────────────
     public string $currentView = 'list'; // 'list' | 'ticket' | 'create'
 
+    public string $ticketTab = 'open'; // 'open' | 'closed'
+
     // ── Data ─────────────────────────────────────────────────────────────────
     /** @var array<int, array<string, mixed>> */
     public array $tickets = [];
@@ -108,6 +110,11 @@ class Support extends Page
         $this->initialise();
     }
 
+    public function setTicketTab(string $tab): void
+    {
+        $this->ticketTab = $tab;
+    }
+
     public function viewTicket(int $ticketId): void
     {
         $this->loading = true;
@@ -149,6 +156,10 @@ class Support extends Page
             $this->replyMessage     = '';
             $this->replyAttachments = [];
             $this->ticket           = $this->whmcs->getTicket($ticketId);
+
+            try {
+                $this->tickets = $this->whmcs->getTickets($this->whmcsClientId);
+            } catch (\Exception) {}
 
             Notification::make()->title(trans('server/support.reply_submitted'))->success()->send();
         } catch (\Exception $e) {
@@ -420,6 +431,11 @@ class Support extends Page
         try {
             $this->whmcs->closeTicket($ticketId);
             $this->ticket = $this->whmcs->getTicket($ticketId);
+
+            try {
+                $this->tickets = $this->whmcs->getTickets($this->whmcsClientId);
+            } catch (\Exception) {}
+
             Notification::make()->title('Ticket closed.')->success()->send();
         } catch (\Exception $e) {
             Log::error('WHMCS Support closeTicket error: ' . $e->getMessage());

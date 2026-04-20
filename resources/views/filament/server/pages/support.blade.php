@@ -70,105 +70,68 @@
             </x-slot>
 
             @php
-                $activeTickets = array_values(array_filter($this->tickets, fn($t) => strtolower($t['status'] ?? '') !== 'closed'));
+                $openTickets   = array_values(array_filter($this->tickets, fn($t) => strtolower($t['status'] ?? '') !== 'closed'));
                 $closedTickets = array_values(array_filter($this->tickets, fn($t) => strtolower($t['status'] ?? '') === 'closed'));
+                $tabTickets    = $this->ticketTab === 'open' ? $openTickets : $closedTickets;
             @endphp
 
-            @if (empty($this->tickets))
+            {{-- ── Tab bar ──────────────────────────────────────────────────── --}}
+            <div class="flex items-center border-b border-gray-200 dark:border-gray-700 -mx-6 px-6 mb-4">
+                <button
+                    wire:click="setTicketTab('open')"
+                    class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors
+                        {{ $this->ticketTab === 'open'
+                            ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' }}"
+                >{{ 'Open' . (!empty($openTickets) ? ' (' . count($openTickets) . ')' : '') }}</button>
+
+                <button
+                    wire:click="setTicketTab('closed')"
+                    class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors
+                        {{ $this->ticketTab === 'closed'
+                            ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' }}"
+                >{{ 'Closed' . (!empty($closedTickets) ? ' (' . count($closedTickets) . ')' : '') }}</button>
+            </div>
+
+            {{-- ── Ticket table ──────────────────────────────────────────────── --}}
+            @if (empty($tabTickets))
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:48px 0;text-align:center;">
                     <x-filament::icon icon="tabler-ticket" style="width:2.5rem;height:2.5rem;color:var(--gray-300);" />
-                    <p style="font-size:0.875rem;color:var(--gray-500);">{{ trans('server/support.no_tickets') }}</p>
+                    <p style="font-size:0.875rem;color:var(--gray-500);">
+                        {{ $this->ticketTab === 'open' ? trans('server/support.no_tickets') : 'No closed tickets.' }}
+                    </p>
                 </div>
             @else
-
-                @php
-                    $colHeaders = fn() => null; // defined inline below
-                    $ticketRow  = fn($t, bool $muted = false) => null; // rendered inline
-                @endphp
-
-                {{-- ── Active tickets ─────────────────────────────────────── --}}
-                @if (!empty($activeTickets))
-                    {{-- Column headers --}}
-                    <div style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;padding:0 4px 10px;border-bottom:1px solid var(--gray-200);margin-bottom:4px;">
-                        @foreach (['#','Subject','Status','Department','Priority','Updated'] as $col)
-                            <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);{{ $col === 'Updated' ? 'text-align:right;' : '' }}">{{ $col }}</span>
-                        @endforeach
-                    </div>
-
-                    @foreach ($activeTickets as $t)
-                        <button
-                            wire:click="viewTicket({{ (int) ($t['id'] ?? 0) }})"
-                            style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;width:100%;text-align:left;padding:10px 4px;align-items:center;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:background 150ms ease;"
-                            onmouseover="this.style.background='var(--gray-50)'"
-                            onmouseout="this.style.background='transparent'"
-                        >
-                            <span style="font-size:0.75rem;font-family:monospace;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['tid'] ?? $t['id'] ?? '—' }}</span>
-                            <span style="font-size:0.875rem;font-weight:500;color:var(--gray-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['subject'] ?? '—' }}</span>
-                            <div><x-filament::badge :color="$statusColor($t['status'] ?? '')">{{ ucfirst($t['status'] ?? '—') }}</x-filament::badge></div>
-                            <span style="font-size:0.8rem;color:var(--gray-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['dept'] ?? $t['department'] ?? '—' }}</span>
-                            <div><x-filament::badge :color="$priorityColor($t['priority'] ?? '')">{{ ucfirst($t['priority'] ?? '—') }}</x-filament::badge></div>
-                            <span style="font-size:0.75rem;color:var(--gray-400);text-align:right;white-space:nowrap;">
-                                @if (!empty($t['lastreply'])){{ \Carbon\Carbon::parse($t['lastreply'])->diffForHumans() }}
-                                @elseif (!empty($t['date'])){{ \Carbon\Carbon::parse($t['date'])->diffForHumans() }}
-                                @else —
-                                @endif
-                            </span>
-                        </button>
-                        @if (!$loop->last)
-                            <div style="border-bottom:1px solid var(--gray-100);margin:0 4px;"></div>
-                        @endif
+                <div style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;padding:0 4px 10px;border-bottom:1px solid var(--gray-200);margin-bottom:4px;">
+                    @foreach (['#','Subject','Status','Department','Priority','Updated'] as $col)
+                        <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);{{ $col === 'Updated' ? 'text-align:right;' : '' }}">{{ $col }}</span>
                     @endforeach
-                @else
-                    <p style="font-size:0.875rem;color:var(--gray-500);padding:16px 4px;">No active tickets.</p>
-                @endif
+                </div>
 
-                {{-- ── Closed tickets (collapsible) ────────────────────────── --}}
-                @if (!empty($closedTickets))
-                    <div x-data="{ open: false }" style="margin-top:20px;">
-                        <button
-                            x-on:click="open = !open"
-                            style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 4px;border:none;background:transparent;cursor:pointer;border-top:1px solid var(--gray-200);"
-                        >
-                            <x-filament::icon icon="tabler-chevron-right" style="width:1rem;height:1rem;color:var(--gray-400);transition:transform 150ms ease;" x-bind:style="open ? 'transform:rotate(90deg);color:var(--gray-500);' : ''" />
-                            <span style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">
-                                Closed Tickets ({{ count($closedTickets) }})
-                            </span>
-                        </button>
-
-                        <div x-show="open" x-collapse style="padding-top:4px;">
-                            <div style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;padding:0 4px 10px;border-bottom:1px solid var(--gray-100);margin-bottom:4px;">
-                                @foreach (['#','Subject','Status','Department','Priority','Updated'] as $col)
-                                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-300);{{ $col === 'Updated' ? 'text-align:right;' : '' }}">{{ $col }}</span>
-                                @endforeach
-                            </div>
-
-                            @foreach ($closedTickets as $t)
-                                <button
-                                    wire:click="viewTicket({{ (int) ($t['id'] ?? 0) }})"
-                                    style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;width:100%;text-align:left;padding:10px 4px;align-items:center;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:background 150ms ease;opacity:0.7;"
-                                    onmouseover="this.style.background='var(--gray-50)';this.style.opacity='1'"
-                                    onmouseout="this.style.background='transparent';this.style.opacity='0.7'"
-                                >
-                                    <span style="font-size:0.75rem;font-family:monospace;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['tid'] ?? $t['id'] ?? '—' }}</span>
-                                    <span style="font-size:0.875rem;font-weight:500;color:var(--gray-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['subject'] ?? '—' }}</span>
-                                    <div><x-filament::badge color="gray">Closed</x-filament::badge></div>
-                                    <span style="font-size:0.8rem;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['dept'] ?? $t['department'] ?? '—' }}</span>
-                                    <div><x-filament::badge :color="$priorityColor($t['priority'] ?? '')">{{ ucfirst($t['priority'] ?? '—') }}</x-filament::badge></div>
-                                    <span style="font-size:0.75rem;color:var(--gray-400);text-align:right;white-space:nowrap;">
-                                        @if (!empty($t['lastreply'])){{ \Carbon\Carbon::parse($t['lastreply'])->diffForHumans() }}
-                                        @elseif (!empty($t['date'])){{ \Carbon\Carbon::parse($t['date'])->diffForHumans() }}
-                                        @else —
-                                        @endif
-                                    </span>
-                                </button>
-                                @if (!$loop->last)
-                                    <div style="border-bottom:1px solid var(--gray-100);margin:0 4px;"></div>
-                                @endif
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
+                @foreach ($tabTickets as $t)
+                    <button
+                        wire:click="viewTicket({{ (int) ($t['id'] ?? 0) }})"
+                        style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;width:100%;text-align:left;padding:10px 4px;align-items:center;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:background 150ms ease;"
+                        onmouseover="this.style.background='var(--gray-50)'"
+                        onmouseout="this.style.background='transparent'"
+                    >
+                        <span style="font-size:0.75rem;font-family:monospace;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['tid'] ?? $t['id'] ?? '—' }}</span>
+                        <span style="font-size:0.875rem;font-weight:500;color:var(--gray-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['subject'] ?? '—' }}</span>
+                        <div><x-filament::badge :color="$statusColor($t['status'] ?? '')">{{ ucfirst($t['status'] ?? '—') }}</x-filament::badge></div>
+                        <span style="font-size:0.8rem;color:var(--gray-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['dept'] ?? $t['department'] ?? '—' }}</span>
+                        <div><x-filament::badge :color="$priorityColor($t['priority'] ?? '')">{{ ucfirst($t['priority'] ?? '—') }}</x-filament::badge></div>
+                        <span style="font-size:0.75rem;color:var(--gray-400);text-align:right;white-space:nowrap;">
+                            @if (!empty($t['lastreply'])){{ \Carbon\Carbon::parse($t['lastreply'])->diffForHumans() }}
+                            @elseif (!empty($t['date'])){{ \Carbon\Carbon::parse($t['date'])->diffForHumans() }}
+                            @else —
+                            @endif
+                        </span>
+                    </button>
+                    @if (!$loop->last)
+                        <div style="border-bottom:1px solid var(--gray-100);margin:0 4px;"></div>
+                    @endif
+                @endforeach
             @endif
         </x-filament::section>
 
@@ -334,77 +297,64 @@
         </x-filament::section>
 
         {{-- Reply form --}}
-        @if (strtolower($this->ticket['status'] ?? '') !== 'closed')
-            <x-filament::section>
-                <x-slot name="heading">Reply</x-slot>
+        <x-filament::section>
+            <x-slot name="heading">Reply</x-slot>
 
-                <div class="space-y-4">
-                    @error('replyMessage')
-                        <p class="text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p>
+            <div
+                x-data="{ uploading: false, fileCount: 0 }"
+                x-on:livewire-upload-start="uploading = true"
+                x-on:livewire-upload-finish="uploading = false"
+                x-on:livewire-upload-error="uploading = false"
+                class="space-y-4"
+            >
+                @error('replyMessage')
+                    <p class="text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p>
+                @enderror
+
+                <textarea
+                    wire:model="replyMessage"
+                    rows="5"
+                    placeholder="Type your reply here…"
+                    class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 resize-y"
+                ></textarea>
+
+                {{-- Attachments --}}
+                <div class="space-y-1">
+                    <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">
+                        Attachments
+                        <span style="font-weight:400;color:var(--gray-400);">(optional, max 10 MB each)</span>
+                    </label>
+                    @error('replyAttachments.*')
+                        <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
                     @enderror
-
-                    <textarea
-                        wire:model="replyMessage"
-                        rows="5"
-                        placeholder="Type your reply here…"
-                        class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 resize-y"
-                    ></textarea>
-
-                    {{-- Attachments --}}
-                    <div
-                        x-data="{ uploading: false, fileCount: 0 }"
-                        x-on:livewire-upload-start="uploading = true"
-                        x-on:livewire-upload-finish="uploading = false"
-                        x-on:livewire-upload-error="uploading = false"
-                        class="space-y-1"
+                    <input
+                        type="file"
+                        wire:model="replyAttachments"
+                        multiple
+                        x-on:change="fileCount = $event.target.files.length"
+                        style="display:block;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--gray-300);background:var(--white,#fff);font-size:0.875rem;color:var(--gray-700);cursor:pointer;"
                     >
-                        <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">
-                            Attachments
-                            <span style="font-weight:400;color:var(--gray-400);">(optional, max 10 MB each)</span>
-                        </label>
-                        @error('replyAttachments.*')
-                            <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
-                        @enderror
-                        <input
-                            type="file"
-                            wire:model="replyAttachments"
-                            multiple
-                            x-on:change="fileCount = $event.target.files.length"
-                            style="display:block;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--gray-300);background:var(--white,#fff);font-size:0.875rem;color:var(--gray-700);cursor:pointer;"
-                        >
-                        <p x-show="uploading" style="font-size:0.75rem;color:var(--warning-600);">
-                            Uploading… please wait before sending.
-                        </p>
-                        <p x-show="!uploading && fileCount > 0" style="font-size:0.75rem;color:var(--success-600);">
-                            <span x-text="fileCount"></span> file(s) ready to send.
-                        </p>
-                    </div>
-
-                    <div class="flex justify-end">
-                        <div
-                            x-data="{ uploading: false }"
-                            x-on:livewire-upload-start="uploading = true"
-                            x-on:livewire-upload-finish="uploading = false"
-                            x-on:livewire-upload-error="uploading = false"
-                        >
-                            <x-filament::button
-                                icon="tabler-send"
-                                wire:click="submitReply"
-                                wire:loading.attr="disabled"
-                                x-bind:disabled="uploading"
-                            >
-                                <span x-show="!uploading">Send Reply</span>
-                                <span x-show="uploading">Uploading…</span>
-                            </x-filament::button>
-                        </div>
-                    </div>
+                    <p x-show="uploading" style="font-size:0.75rem;color:var(--warning-600);">
+                        Uploading… please wait before sending.
+                    </p>
+                    <p x-show="!uploading && fileCount > 0" style="font-size:0.75rem;color:var(--success-600);">
+                        <span x-text="fileCount"></span> file(s) ready to send.
+                    </p>
                 </div>
-            </x-filament::section>
-        @else
-            <x-filament::section>
-                <p class="text-sm text-gray-500 dark:text-gray-400">This ticket is closed and cannot receive new replies.</p>
-            </x-filament::section>
-        @endif
+
+                <div class="flex justify-end">
+                    <x-filament::button
+                        icon="tabler-send"
+                        wire:click="submitReply"
+                        wire:loading.attr="disabled"
+                        x-bind:disabled="uploading"
+                    >
+                        <span x-show="!uploading">Send Reply</span>
+                        <span x-show="uploading">Uploading…</span>
+                    </x-filament::button>
+                </div>
+            </div>
+        </x-filament::section>
 
     {{-- ════════════════════════════════════════════════════════════════════ --}}
     {{-- ── New ticket form ────────────────────────────────────────────── --}}
