@@ -204,6 +204,29 @@
                             <div class="rounded-xl rounded-tl-none bg-gray-100 dark:bg-gray-800 px-4 py-3 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
                                 {!! nl2br(e(strip_tags($this->ticket['message']))) !!}
                             </div>
+                            @php
+                                $openingAttachments = $this->ticket['attachments']['attachment'] ?? [];
+                                if (!empty($openingAttachments) && isset($openingAttachments['filename'])) {
+                                    $openingAttachments = [$openingAttachments];
+                                }
+                            @endphp
+                            @if (!empty($openingAttachments))
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+                                    @foreach ($openingAttachments as $att)
+                                        <a
+                                            href="{{ $att['url'] ?? '#' }}"
+                                            target="_blank"
+                                            rel="noopener"
+                                            style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid var(--gray-200);font-size:0.75rem;color:var(--gray-600);text-decoration:none;background:var(--white,#fff);"
+                                            onmouseover="this.style.background='var(--gray-50)'"
+                                            onmouseout="this.style.background='var(--white,#fff)'"
+                                        >
+                                            <x-filament::icon icon="tabler-paperclip" style="width:0.875rem;height:0.875rem;" />
+                                            {{ $att['filename'] ?? 'Attachment' }}
+                                        </a>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endif
@@ -240,6 +263,29 @@
                             <div class="rounded-xl {{ $isAdmin ? 'rounded-tl-none bg-gray-100 dark:bg-gray-800' : 'rounded-tr-none bg-primary-50 dark:bg-primary-900/20' }} px-4 py-3 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
                                 {!! nl2br(e(strip_tags($reply['message'] ?? ''))) !!}
                             </div>
+                            @php
+                                $replyAtts = $reply['attachments']['attachment'] ?? [];
+                                if (!empty($replyAtts) && isset($replyAtts['filename'])) {
+                                    $replyAtts = [$replyAtts];
+                                }
+                            @endphp
+                            @if (!empty($replyAtts))
+                                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;{{ $isAdmin ? '' : 'justify-content:flex-end;' }}">
+                                    @foreach ($replyAtts as $att)
+                                        <a
+                                            href="{{ $att['url'] ?? '#' }}"
+                                            target="_blank"
+                                            rel="noopener"
+                                            style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid var(--gray-200);font-size:0.75rem;color:var(--gray-600);text-decoration:none;background:var(--white,#fff);"
+                                            onmouseover="this.style.background='var(--gray-50)'"
+                                            onmouseout="this.style.background='var(--white,#fff)'"
+                                        >
+                                            <x-filament::icon icon="tabler-paperclip" style="width:0.875rem;height:0.875rem;" />
+                                            {{ $att['filename'] ?? 'Attachment' }}
+                                        </a>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endforeach
@@ -263,6 +309,23 @@
                         placeholder="Type your reply here…"
                         class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 resize-y"
                     ></textarea>
+
+                    {{-- Attachments --}}
+                    <div class="space-y-1">
+                        <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">Attachments <span style="font-weight:400;color:var(--gray-400);">(optional, max 10 MB each)</span></label>
+                        @error('replyAttachments.*')
+                            <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
+                        @enderror
+                        <input
+                            type="file"
+                            wire:model="replyAttachments"
+                            multiple
+                            style="display:block;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--gray-300);background:var(--white,#fff);font-size:0.875rem;color:var(--gray-700);cursor:pointer;"
+                        >
+                        @if (!empty($replyAttachments))
+                            <p style="font-size:0.75rem;color:var(--gray-500);">{{ count($replyAttachments) }} file(s) selected</p>
+                        @endif
+                    </div>
 
                     <div class="flex justify-end">
                         <x-filament::button
@@ -365,6 +428,23 @@
                         placeholder="Describe your issue in detail…"
                         class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 resize-y"
                     ></textarea>
+                </div>
+
+                {{-- Attachments --}}
+                <div class="space-y-1">
+                    <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">Attachments <span style="font-weight:400;color:var(--gray-400);">(optional, max 10 MB each)</span></label>
+                    @error('newAttachments.*')
+                        <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
+                    @enderror
+                    <input
+                        type="file"
+                        wire:model="newAttachments"
+                        multiple
+                        style="display:block;width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--gray-300);background:var(--white,#fff);font-size:0.875rem;color:var(--gray-700);cursor:pointer;"
+                    >
+                    @if (!empty($newAttachments))
+                        <p style="font-size:0.75rem;color:var(--gray-500);">{{ count($newAttachments) }} file(s) selected</p>
+                    @endif
                 </div>
 
                 <div class="flex justify-end">

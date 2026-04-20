@@ -9,9 +9,12 @@ use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Log;
+use Livewire\WithFileUploads;
 
 class Support extends Page
 {
+    use WithFileUploads;
+
     protected static string|BackedEnum|null $navigationIcon = TablerIcon::Headset;
 
     protected static ?int $navigationSort = 8;
@@ -43,11 +46,17 @@ class Support extends Page
     // ── Reply form ────────────────────────────────────────────────────────────
     public string $replyMessage = '';
 
+    /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
+    public array $replyAttachments = [];
+
     // ── New ticket form ───────────────────────────────────────────────────────
     public string $newSubject  = '';
     public string $newDeptId   = '';
     public string $newPriority = 'Medium';
     public string $newMessage  = '';
+
+    /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
+    public array $newAttachments = [];
 
     private WhmcsService $whmcs;
 
@@ -102,9 +111,10 @@ class Support extends Page
         $this->error   = null;
 
         try {
-            $this->ticket      = $this->whmcs->getTicket($ticketId);
-            $this->currentView = 'ticket';
-            $this->replyMessage = '';
+            $this->ticket           = $this->whmcs->getTicket($ticketId);
+            $this->currentView      = 'ticket';
+            $this->replyMessage     = '';
+            $this->replyAttachments = [];
         } catch (\Exception $e) {
             Log::error('WHMCS Support viewTicket error: ' . $e->getMessage());
             $this->error = trans('server/support.unavailable');
@@ -115,13 +125,25 @@ class Support extends Page
 
     public function submitReply(): void
     {
-        $this->validate(['replyMessage' => 'required|min:5']);
+        $this->validate([
+            'replyMessage'      => 'required|min:5',
+            'replyAttachments'  => 'nullable|array',
+            'replyAttachments.*'=> 'file|max:10240',
+        ]);
 
         try {
-            $this->whmcs->addReply((int) $this->ticket['ticketid'], $this->whmcsClientId, $this->replyMessage);
+            $attachments = $this->whmcs->encodeAttachments($this->replyAttachments);
 
-            $this->replyMessage = '';
-            $this->ticket = $this->whmcs->getTicket((int) $this->ticket['ticketid']);
+            $this->whmcs->addReply(
+                (int) $this->ticket['ticketid'],
+                $this->whmcsClientId,
+                $this->replyMessage,
+                $attachments,
+            );
+
+            $this->replyMessage     = '';
+            $this->replyAttachments = [];
+            $this->ticket           = $this->whmcs->getTicket((int) $this->ticket['ticketid']);
 
             Notification::make()->title(trans('server/support.reply_submitted'))->success()->send();
         } catch (\Exception $e) {
@@ -133,14 +155,18 @@ class Support extends Page
     public function submitNewTicket(): void
     {
         $this->validate([
-            'newSubject'  => 'required|min:5|max:255',
-            'newDeptId'   => 'required',
-            'newPriority' => 'required|in:Low,Medium,High',
-            'newMessage'  => 'required|min:20',
+            'newSubject'       => 'required|min:5|max:255',
+            'newDeptId'        => 'required',
+            'newPriority'      => 'required|in:Low,Medium,High',
+            'newMessage'       => 'required|min:20',
+            'newAttachments'   => 'nullable|array',
+            'newAttachments.*' => 'file|max:10240',
         ]);
 
         try {
-            $user = user();
+            $user        = user();
+            $attachments = $this->whmcs->encodeAttachments($this->newAttachments);
+
             $this->whmcs->openTicket(
                 $this->whmcsClientId,
                 $user?->username ?? $user?->email ?? 'User',
@@ -149,6 +175,7 @@ class Support extends Page
                 $this->newSubject,
                 $this->newMessage,
                 $this->newPriority,
+                $attachments,
             );
         } catch (\Exception $e) {
             Log::error('WHMCS Support submitNewTicket error: ' . $e->getMessage());
@@ -157,11 +184,12 @@ class Support extends Page
         }
 
         // Ticket created — reset form and switch to list before refreshing
-        $this->newSubject  = '';
-        $this->newDeptId   = '';
-        $this->newMessage  = '';
-        $this->newPriority = 'Medium';
-        $this->currentView = 'list';
+        $this->newSubject     = '';
+        $this->newDeptId      = '';
+        $this->newMessage     = '';
+        $this->newPriority    = 'Medium';
+        $this->newAttachments = [];
+        $this->currentView    = 'list';
 
         Notification::make()->title(trans('server/support.ticket_submitted'))->success()->send();
 
@@ -175,20 +203,22 @@ class Support extends Page
 
     public function backToList(): void
     {
-        $this->currentView  = 'list';
-        $this->ticket       = [];
-        $this->replyMessage = '';
-        $this->error        = null;
+        $this->currentView      = 'list';
+        $this->ticket           = [];
+        $this->replyMessage     = '';
+        $this->replyAttachments = [];
+        $this->error            = null;
     }
 
     public function showCreate(): void
     {
-        $this->currentView  = 'create';
-        $this->newSubject   = '';
-        $this->newDeptId    = '';
-        $this->newMessage   = '';
-        $this->newPriority  = 'Medium';
-        $this->error        = null;
+        $this->currentView    = 'create';
+        $this->newSubject     = '';
+        $this->newDeptId      = '';
+        $this->newMessage     = '';
+        $this->newPriority    = 'Medium';
+        $this->newAttachments = [];
+        $this->error          = null;
     }
 
     public static function canAccess(): bool

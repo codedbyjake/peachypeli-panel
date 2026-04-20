@@ -2,6 +2,7 @@
 
 namespace App\Services\Whmcs;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -55,6 +56,29 @@ class WhmcsService
         return $data;
     }
 
+    /**
+     * Encode an array of UploadedFile objects into the JSON string WHMCS expects.
+     *
+     * @param  array<int, UploadedFile>  $files
+     */
+    public function encodeAttachments(array $files): string
+    {
+        $encoded = [];
+
+        foreach ($files as $file) {
+            if (!$file instanceof UploadedFile) {
+                continue;
+            }
+
+            $encoded[] = [
+                'name' => $file->getClientOriginalName(),
+                'data' => base64_encode((string) file_get_contents($file->getRealPath())),
+            ];
+        }
+
+        return empty($encoded) ? '' : json_encode($encoded);
+    }
+
     public function getClientId(string $email): ?int
     {
         $data    = $this->call('GetClients', ['search' => $email, 'limitnum' => 1]);
@@ -80,9 +104,9 @@ class WhmcsService
         $tickets = $data['tickets']['ticket'] ?? [];
 
         Log::info('WHMCS getTickets with clientid result', [
-            'clientId'    => $clientId,
+            'clientId'     => $clientId,
             'totalresults' => $data['totalresults'] ?? 'n/a',
-            'raw_tickets' => $tickets,
+            'raw_tickets'  => $tickets,
         ]);
 
         $normalised = isset($tickets[0]) ? $tickets : ($tickets ? [$tickets] : []);
@@ -124,8 +148,9 @@ class WhmcsService
         string $subject,
         string $message,
         string $priority = 'Medium',
+        string $attachments = '',
     ): void {
-        $this->call('OpenTicket', [
+        $params = [
             'clientid' => $clientId,
             'name'     => $name,
             'email'    => $email,
@@ -133,15 +158,27 @@ class WhmcsService
             'subject'  => $subject,
             'message'  => $message,
             'priority' => $priority,
-        ]);
+        ];
+
+        if ($attachments !== '') {
+            $params['attachments'] = $attachments;
+        }
+
+        $this->call('OpenTicket', $params);
     }
 
-    public function addReply(int $ticketId, int $clientId, string $message): void
+    public function addReply(int $ticketId, int $clientId, string $message, string $attachments = ''): void
     {
-        $this->call('AddTicketReply', [
+        $params = [
             'ticketid' => $ticketId,
             'clientid' => $clientId,
             'message'  => $message,
-        ]);
+        ];
+
+        if ($attachments !== '') {
+            $params['attachments'] = $attachments;
+        }
+
+        $this->call('AddTicketReply', $params);
     }
 }
