@@ -8,7 +8,6 @@ use App\Enums\SubuserPermission;
 use App\Enums\TablerIcon;
 use App\Exceptions\Http\Server\ServerStateConflictException;
 use App\Extensions\Features\FeatureService;
-use App\Filament\Server\Widgets\ServerConnectionInfo;
 use App\Filament\Server\Widgets\ServerConsole;
 use App\Filament\Server\Widgets\ServerCpuChart;
 use App\Filament\Server\Widgets\ServerMemoryChart;
@@ -117,8 +116,6 @@ class Console extends Page
 
         $allWidgets = array_merge($allWidgets, static::$customWidgets[ConsoleWidgetPosition::Top->value] ?? []);
 
-        $allWidgets[] = ServerConnectionInfo::class;
-
         $allWidgets[] = ServerOverview::class;
 
         $allWidgets = array_merge($allWidgets, static::$customWidgets[ConsoleWidgetPosition::AboveConsole->value] ?? []);
@@ -171,21 +168,21 @@ class Console extends Page
     protected function getDefaultHeaderActions(): array
     {
         return [
-            Action::make('steam_connect')
-                ->view('filament.actions.steam-connect')
-                ->url(function () {
-                    /** @var Server $server */
-                    $server = Filament::getTenant();
-
-                    return 'steam://connect/' . ($server->allocation?->address ?? '');
-                })
-                ->visible(function () {
-                    /** @var Server $server */
-                    $server = Filament::getTenant();
-
-                    return !$this->isMinecraftServer($server);
-                }),
             ActionGroup::make([
+                Action::make('steam_connect')
+                    ->view('filament.actions.steam-connect')
+                    ->url(function () {
+                        /** @var Server $server */
+                        $server = Filament::getTenant();
+
+                        return 'steam://connect/' . ($server->allocation?->address ?? '');
+                    })
+                    ->visible(function () {
+                        /** @var Server $server */
+                        $server = Filament::getTenant();
+
+                        return !$this->isMinecraftServer($server);
+                    }),
                 Action::make('start')
                     ->label(trans('server/console.power_actions.start'))
                     ->color('primary')

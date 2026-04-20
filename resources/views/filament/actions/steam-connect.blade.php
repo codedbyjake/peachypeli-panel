@@ -1,6 +1,7 @@
 <a
     href="{{ $getUrl() }}"
-    style="display:inline-flex;align-items:center;gap:0.375rem;border-radius:0.5rem;padding:0.75rem 1rem;font-size:0.875rem;line-height:1.25rem;font-weight:500;background-color:#1b2838;color:#ffffff;text-decoration:none;white-space:nowrap;box-shadow:0 1px 2px 0 rgb(0 0 0/.05);"
+    class="fi-btn fi-size-xl"
+    style="background-color:#1b2838;color:#ffffff;text-decoration:none;"
     onmouseover="this.style.backgroundColor='#2a475e'"
     onmouseout="this.style.backgroundColor='#1b2838'"
 >

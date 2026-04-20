@@ -25,6 +25,8 @@ class ServerOverview extends StatsOverviewWidget
             SmallStatBlock::make(trans('server/console.labels.cpu'), $this->cpuUsage()),
             SmallStatBlock::make(trans('server/console.labels.memory'), $this->memoryUsage()),
             SmallStatBlock::make(trans('server/console.labels.disk'), $this->diskUsage()),
+            SmallStatBlock::make(trans('server/console.labels.node'), $this->server?->node?->name ?? 'Unknown'),
+            SmallStatBlock::make(trans('server/console.labels.game'), $this->server?->egg?->name ?? 'Unknown'),
         ];
     }
 

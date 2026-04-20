@@ -21,6 +21,8 @@ return [
         'name' => 'Name',
         'status' => 'Status',
         'address' => 'Address',
+        'node' => 'Node',
+        'game' => 'Game',
         'unavailable' => 'Unavailable',
     ],
     'status' => [
