@@ -33,7 +33,7 @@
     @endif
 
         {{-- ── Console (left column) ── --}}
-        <div style="display:flex;flex-direction:column;height:100%;">
+        <div style="display:flex;flex-direction:column;height:100%;border:1px solid #374151;">
             <div id="terminal" wire:ignore style="flex:1;min-height:0;overflow:hidden;"></div>
 
             @if ($this->authorizeSendCommand())
