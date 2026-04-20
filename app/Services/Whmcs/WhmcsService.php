@@ -73,10 +73,32 @@ class WhmcsService
     /** @return array<int, array<string, mixed>> */
     public function getTickets(int $clientId): array
     {
-        $data    = $this->call('GetTickets', ['clientid' => $clientId, 'limitnum' => 100, 'status' => 'All']);
+        Log::info('WHMCS getTickets called', ['clientId' => $clientId]);
+
+        // Fetch with clientid filter first
+        $data    = $this->call('GetTickets', ['clientid' => $clientId, 'limitnum' => 100]);
         $tickets = $data['tickets']['ticket'] ?? [];
 
-        return isset($tickets[0]) ? $tickets : ($tickets ? [$tickets] : []);
+        Log::info('WHMCS getTickets with clientid result', [
+            'clientId'    => $clientId,
+            'totalresults' => $data['totalresults'] ?? 'n/a',
+            'raw_tickets' => $tickets,
+        ]);
+
+        $normalised = isset($tickets[0]) ? $tickets : ($tickets ? [$tickets] : []);
+
+        // If no results, try without clientid to check if tickets exist at all
+        if (empty($normalised)) {
+            $allData    = $this->call('GetTickets', ['limitnum' => 25]);
+            $allTickets = $allData['tickets']['ticket'] ?? [];
+
+            Log::info('WHMCS getTickets without clientid (debug fallback)', [
+                'totalresults' => $allData['totalresults'] ?? 'n/a',
+                'raw_tickets'  => $allTickets,
+            ]);
+        }
+
+        return $normalised;
     }
 
     /** @return array<string, mixed> */

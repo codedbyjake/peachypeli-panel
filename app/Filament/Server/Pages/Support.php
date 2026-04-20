@@ -150,19 +150,26 @@ class Support extends Page
                 $this->newMessage,
                 $this->newPriority,
             );
-
-            $this->newSubject  = '';
-            $this->newDeptId   = '';
-            $this->newMessage  = '';
-            $this->newPriority = 'Medium';
-
-            $this->tickets     = $this->whmcs->getTickets($this->whmcsClientId);
-            $this->currentView = 'list';
-
-            Notification::make()->title(trans('server/support.ticket_submitted'))->success()->send();
         } catch (\Exception $e) {
             Log::error('WHMCS Support submitNewTicket error: ' . $e->getMessage());
             Notification::make()->title(trans('server/support.ticket_submit_failed'))->danger()->send();
+            return;
+        }
+
+        // Ticket created — reset form and switch to list before refreshing
+        $this->newSubject  = '';
+        $this->newDeptId   = '';
+        $this->newMessage  = '';
+        $this->newPriority = 'Medium';
+        $this->currentView = 'list';
+
+        Notification::make()->title(trans('server/support.ticket_submitted'))->success()->send();
+
+        // Refresh ticket list so the newly created ticket appears immediately
+        try {
+            $this->tickets = $this->whmcs->getTickets($this->whmcsClientId);
+        } catch (\Exception $e) {
+            Log::error('WHMCS Support ticket list refresh error: ' . $e->getMessage());
         }
     }
 
