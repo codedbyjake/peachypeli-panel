@@ -155,11 +155,15 @@
 
                         {{-- Biomes --}}
                         @if (!empty($rustStats['biomes']))
-                            <div style="padding-top:6px; border-top:1px solid rgb(229,231,235); display:flex; flex-wrap:wrap; gap:4px 16px;" class="dark:border-gray-700">
+                            @php
+                                $biomeNames = ['s' => 'Snow', 'd' => 'Desert', 'f' => 'Forest', 't' => 'Temperate', 'j' => 'Arid'];
+                            @endphp
+                            <div style="padding-top:6px; border-top:1px solid rgb(229,231,235); display:flex; flex-wrap:wrap; gap:4px 12px;" class="dark:border-gray-700">
                                 @foreach ($rustStats['biomes'] as $biome => $pct)
+                                    @php $biomeName = $biomeNames[strtolower($biome)] ?? ucfirst(strtolower($biome)); @endphp
                                     <div style="display:flex; align-items:center; gap:4px;">
-                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ ucfirst(strtolower($biome)) }}</span>
-                                        <span class="text-xs font-medium text-gray-700 dark:text-gray-200" style="font-variant-numeric:tabular-nums;">{{ $pct }}%</span>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ $biomeName }}</span>
+                                        <span class="text-xs font-medium text-gray-700 dark:text-gray-200" style="font-variant-numeric:tabular-nums;">{{ round($pct, 1) }}%</span>
                                     </div>
                                 @endforeach
                             </div>
