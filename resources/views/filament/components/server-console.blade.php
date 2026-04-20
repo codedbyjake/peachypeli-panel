@@ -33,18 +33,19 @@
     @endif
 
         {{-- ── Console (left column) ── --}}
-        <div style="height:100%">
-            <div id="terminal" wire:ignore></div>
+        <div style="display:flex;flex-direction:column;height:100%;">
+            <div id="terminal" wire:ignore style="flex:1;min-height:0;overflow:hidden;"></div>
 
             @if ($this->authorizeSendCommand())
-                <div class="flex items-center w-full border-top overflow-hidden dark:bg-gray-900"
+                <div class="flex items-center gap-2 w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-950/10 dark:border-white/10"
                      style="border-bottom-right-radius: 10px; border-bottom-left-radius: 10px;">
                     <x-filament::icon
                         icon="tabler-chevrons-right"
+                        class="h-4 w-4 shrink-0 text-primary-500 dark:text-primary-400"
                     />
                     <input
                         id="send-command"
-                        class="w-full focus:outline-none focus:ring-0 border-none dark:bg-gray-900 p-1"
+                        class="w-full focus:outline-none focus:ring-0 border-none bg-transparent text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 py-1"
                         type="text"
                         :readonly="{{ $this->canSendCommand() ? 'false' : 'true' }}"
                         title="{{ $this->canSendCommand() ? '' : trans('server/console.command_blocked_title') }}"
@@ -60,7 +61,7 @@
 
         {{-- ── Game panel (right column) ── --}}
         @if ($hasPanel)
-        <div x-show="panelVisible">
+        <div x-show="panelVisible" style="height:100%;">
 
             @if ($panelType === 'rust')
             {{-- ── Rust: interactive world map (pure PHP/CSS, no Alpine) ── --}}
@@ -353,7 +354,9 @@
 
         terminal.open(document.getElementById('terminal'));
 
-        fitAddon.fit(); // Fixes SPA issues.
+        fitAddon.fit();
+        // Re-fit once layout has settled so xterm fills the flex container height.
+        requestAnimationFrame(() => fitAddon.fit());
 
         window.addEventListener('load', () => {
             fitAddon.fit();
