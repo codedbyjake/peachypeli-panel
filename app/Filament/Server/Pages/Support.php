@@ -409,6 +409,24 @@ class Support extends Page
         ) ?? $escaped;
     }
 
+    public function closeTicket(): void
+    {
+        $ticketId = (int) ($this->ticket['ticketid'] ?? 0);
+
+        if (!$ticketId) {
+            return;
+        }
+
+        try {
+            $this->whmcs->closeTicket($ticketId);
+            $this->ticket = $this->whmcs->getTicket($ticketId);
+            Notification::make()->title('Ticket closed.')->success()->send();
+        } catch (\Exception $e) {
+            Log::error('WHMCS Support closeTicket error: ' . $e->getMessage());
+            Notification::make()->title('Failed to close ticket. Please try again.')->danger()->send();
+        }
+    }
+
     public function backToList(): void
     {
         $this->currentView      = 'list';

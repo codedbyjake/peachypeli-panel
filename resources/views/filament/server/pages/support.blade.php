@@ -69,75 +69,106 @@
                 </div>
             </x-slot>
 
+            @php
+                $activeTickets = array_values(array_filter($this->tickets, fn($t) => strtolower($t['status'] ?? '') !== 'closed'));
+                $closedTickets = array_values(array_filter($this->tickets, fn($t) => strtolower($t['status'] ?? '') === 'closed'));
+            @endphp
+
             @if (empty($this->tickets))
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:48px 0;text-align:center;">
                     <x-filament::icon icon="tabler-ticket" style="width:2.5rem;height:2.5rem;color:var(--gray-300);" />
                     <p style="font-size:0.875rem;color:var(--gray-500);">{{ trans('server/support.no_tickets') }}</p>
                 </div>
             @else
-                {{-- Column headers --}}
-                <div style="display:grid;grid-template-columns:80px 1fr 120px 140px 90px 100px;gap:12px;padding:0 4px 10px;border-bottom:1px solid var(--gray-200);margin-bottom:4px;">
-                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">#</span>
-                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">Subject</span>
-                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">Status</span>
-                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">Department</span>
-                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">Priority</span>
-                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);text-align:right;">Updated</span>
-                </div>
 
-                {{-- Ticket rows --}}
-                @foreach ($this->tickets as $t)
-                    <button
-                        wire:click="viewTicket({{ (int) ($t['id'] ?? 0) }})"
-                        style="display:grid;grid-template-columns:80px 1fr 120px 140px 90px 100px;gap:12px;width:100%;text-align:left;padding:10px 4px;align-items:center;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:background 150ms ease;"
-                        onmouseover="this.style.background='var(--gray-50)'"
-                        onmouseout="this.style.background='transparent'"
-                    >
-                        {{-- Ticket ref --}}
-                        <span style="font-size:0.75rem;font-family:monospace;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                            {{ $t['tid'] ?? $t['id'] ?? '—' }}
-                        </span>
+                @php
+                    $colHeaders = fn() => null; // defined inline below
+                    $ticketRow  = fn($t, bool $muted = false) => null; // rendered inline
+                @endphp
 
-                        {{-- Subject --}}
-                        <span style="font-size:0.875rem;font-weight:500;color:var(--gray-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                            {{ $t['subject'] ?? '—' }}
-                        </span>
+                {{-- ── Active tickets ─────────────────────────────────────── --}}
+                @if (!empty($activeTickets))
+                    {{-- Column headers --}}
+                    <div style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;padding:0 4px 10px;border-bottom:1px solid var(--gray-200);margin-bottom:4px;">
+                        @foreach (['#','Subject','Status','Department','Priority','Updated'] as $col)
+                            <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);{{ $col === 'Updated' ? 'text-align:right;' : '' }}">{{ $col }}</span>
+                        @endforeach
+                    </div>
 
-                        {{-- Status badge --}}
-                        <div>
-                            <x-filament::badge :color="$statusColor($t['status'] ?? '')">
-                                {{ ucfirst($t['status'] ?? '—') }}
-                            </x-filament::badge>
+                    @foreach ($activeTickets as $t)
+                        <button
+                            wire:click="viewTicket({{ (int) ($t['id'] ?? 0) }})"
+                            style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;width:100%;text-align:left;padding:10px 4px;align-items:center;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:background 150ms ease;"
+                            onmouseover="this.style.background='var(--gray-50)'"
+                            onmouseout="this.style.background='transparent'"
+                        >
+                            <span style="font-size:0.75rem;font-family:monospace;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['tid'] ?? $t['id'] ?? '—' }}</span>
+                            <span style="font-size:0.875rem;font-weight:500;color:var(--gray-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['subject'] ?? '—' }}</span>
+                            <div><x-filament::badge :color="$statusColor($t['status'] ?? '')">{{ ucfirst($t['status'] ?? '—') }}</x-filament::badge></div>
+                            <span style="font-size:0.8rem;color:var(--gray-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['dept'] ?? $t['department'] ?? '—' }}</span>
+                            <div><x-filament::badge :color="$priorityColor($t['priority'] ?? '')">{{ ucfirst($t['priority'] ?? '—') }}</x-filament::badge></div>
+                            <span style="font-size:0.75rem;color:var(--gray-400);text-align:right;white-space:nowrap;">
+                                @if (!empty($t['lastreply'])){{ \Carbon\Carbon::parse($t['lastreply'])->diffForHumans() }}
+                                @elseif (!empty($t['date'])){{ \Carbon\Carbon::parse($t['date'])->diffForHumans() }}
+                                @else —
+                                @endif
+                            </span>
+                        </button>
+                        @if (!$loop->last)
+                            <div style="border-bottom:1px solid var(--gray-100);margin:0 4px;"></div>
+                        @endif
+                    @endforeach
+                @else
+                    <p style="font-size:0.875rem;color:var(--gray-500);padding:16px 4px;">No active tickets.</p>
+                @endif
+
+                {{-- ── Closed tickets (collapsible) ────────────────────────── --}}
+                @if (!empty($closedTickets))
+                    <div x-data="{ open: false }" style="margin-top:20px;">
+                        <button
+                            x-on:click="open = !open"
+                            style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 4px;border:none;background:transparent;cursor:pointer;border-top:1px solid var(--gray-200);"
+                        >
+                            <x-filament::icon icon="tabler-chevron-right" style="width:1rem;height:1rem;color:var(--gray-400);transition:transform 150ms ease;" x-bind:style="open ? 'transform:rotate(90deg);color:var(--gray-500);' : ''" />
+                            <span style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-400);">
+                                Closed Tickets ({{ count($closedTickets) }})
+                            </span>
+                        </button>
+
+                        <div x-show="open" x-collapse style="padding-top:4px;">
+                            <div style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;padding:0 4px 10px;border-bottom:1px solid var(--gray-100);margin-bottom:4px;">
+                                @foreach (['#','Subject','Status','Department','Priority','Updated'] as $col)
+                                    <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--gray-300);{{ $col === 'Updated' ? 'text-align:right;' : '' }}">{{ $col }}</span>
+                                @endforeach
+                            </div>
+
+                            @foreach ($closedTickets as $t)
+                                <button
+                                    wire:click="viewTicket({{ (int) ($t['id'] ?? 0) }})"
+                                    style="display:grid;grid-template-columns:80px 1fr 130px 140px 90px 100px;gap:12px;width:100%;text-align:left;padding:10px 4px;align-items:center;border-radius:8px;border:none;background:transparent;cursor:pointer;transition:background 150ms ease;opacity:0.7;"
+                                    onmouseover="this.style.background='var(--gray-50)';this.style.opacity='1'"
+                                    onmouseout="this.style.background='transparent';this.style.opacity='0.7'"
+                                >
+                                    <span style="font-size:0.75rem;font-family:monospace;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['tid'] ?? $t['id'] ?? '—' }}</span>
+                                    <span style="font-size:0.875rem;font-weight:500;color:var(--gray-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['subject'] ?? '—' }}</span>
+                                    <div><x-filament::badge color="gray">Closed</x-filament::badge></div>
+                                    <span style="font-size:0.8rem;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $t['dept'] ?? $t['department'] ?? '—' }}</span>
+                                    <div><x-filament::badge :color="$priorityColor($t['priority'] ?? '')">{{ ucfirst($t['priority'] ?? '—') }}</x-filament::badge></div>
+                                    <span style="font-size:0.75rem;color:var(--gray-400);text-align:right;white-space:nowrap;">
+                                        @if (!empty($t['lastreply'])){{ \Carbon\Carbon::parse($t['lastreply'])->diffForHumans() }}
+                                        @elseif (!empty($t['date'])){{ \Carbon\Carbon::parse($t['date'])->diffForHumans() }}
+                                        @else —
+                                        @endif
+                                    </span>
+                                </button>
+                                @if (!$loop->last)
+                                    <div style="border-bottom:1px solid var(--gray-100);margin:0 4px;"></div>
+                                @endif
+                            @endforeach
                         </div>
+                    </div>
+                @endif
 
-                        {{-- Department --}}
-                        <span style="font-size:0.8rem;color:var(--gray-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                            {{ $t['dept'] ?? $t['department'] ?? '—' }}
-                        </span>
-
-                        {{-- Priority badge --}}
-                        <div>
-                            <x-filament::badge :color="$priorityColor($t['priority'] ?? '')">
-                                {{ ucfirst($t['priority'] ?? '—') }}
-                            </x-filament::badge>
-                        </div>
-
-                        {{-- Last updated --}}
-                        <span style="font-size:0.75rem;color:var(--gray-400);text-align:right;white-space:nowrap;">
-                            @if (!empty($t['lastreply']))
-                                {{ \Carbon\Carbon::parse($t['lastreply'])->diffForHumans() }}
-                            @elseif (!empty($t['date']))
-                                {{ \Carbon\Carbon::parse($t['date'])->diffForHumans() }}
-                            @else
-                                —
-                            @endif
-                        </span>
-                    </button>
-
-                    @if (!$loop->last)
-                        <div style="border-bottom:1px solid var(--gray-100);margin:0 4px;"></div>
-                    @endif
-                @endforeach
             @endif
         </x-filament::section>
 
@@ -176,6 +207,17 @@
                     <x-filament::badge :color="$priorityColor($this->ticket['priority'] ?? '')">
                         {{ ucfirst($this->ticket['priority'] ?? '—') }}
                     </x-filament::badge>
+                    @if (strtolower($this->ticket['status'] ?? '') !== 'closed')
+                        <x-filament::button
+                            color="danger"
+                            size="sm"
+                            icon="tabler-x"
+                            wire:click="closeTicket"
+                            wire:loading.attr="disabled"
+                        >
+                            Close Ticket
+                        </x-filament::button>
+                    @endif
                 </div>
             </x-slot>
 

@@ -150,4 +150,12 @@ class WhmcsService
             'message'  => $message,
         ]);
     }
+
+    public function closeTicket(int $ticketId): void
+    {
+        $this->call('UpdateTicket', [
+            'ticketid' => $ticketId,
+            'status'   => 'Closed',
+        ]);
+    }
 }
