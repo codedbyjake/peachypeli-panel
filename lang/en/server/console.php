@@ -23,6 +23,7 @@ return [
         'address' => 'Address',
         'node' => 'Node',
         'game' => 'Game',
+        'players' => 'Players',
         'unavailable' => 'Unavailable',
     ],
     'status' => [

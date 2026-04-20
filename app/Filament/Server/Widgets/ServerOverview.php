@@ -7,12 +7,24 @@ use App\Filament\Server\Components\SmallStatBlock;
 use App\Models\Server;
 use Carbon\CarbonInterface;
 use Filament\Widgets\StatsOverviewWidget;
+use Livewire\Attributes\On;
 
 class ServerOverview extends StatsOverviewWidget
 {
     protected ?string $pollingInterval = '1s';
 
     public ?Server $server = null;
+
+    public int $playerCount = 0;
+
+    public int $maxPlayers = 0;
+
+    #[On('player-list-update')]
+    public function receivePlayerList(int $count, int $max): void
+    {
+        $this->playerCount = $count;
+        $this->maxPlayers = $max;
+    }
 
     protected function getStats(): array
     {
@@ -27,6 +39,7 @@ class ServerOverview extends StatsOverviewWidget
             SmallStatBlock::make(trans('server/console.labels.disk'), $this->diskUsage()),
             SmallStatBlock::make(trans('server/console.labels.node'), $this->server?->node?->name ?? 'Unknown'),
             SmallStatBlock::make(trans('server/console.labels.game'), $this->server?->egg?->name ?? 'Unknown'),
+            SmallStatBlock::make(trans('server/console.labels.players'), $this->playerCount . ($this->maxPlayers > 0 ? '/' . $this->maxPlayers : '')),
         ];
     }
 
