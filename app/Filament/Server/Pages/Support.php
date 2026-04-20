@@ -49,8 +49,8 @@ class Support extends Page
     // ── Reply form ────────────────────────────────────────────────────────────
     public string $replyMessage = '';
 
-    /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
-    public array $replyAttachments = [];
+    // No array type hint — Livewire needs to hydrate TemporaryUploadedFile instances
+    public $replyAttachments = [];
 
     // ── New ticket form ───────────────────────────────────────────────────────
     public string $newSubject  = '';
@@ -58,8 +58,8 @@ class Support extends Page
     public string $newPriority = 'Medium';
     public string $newMessage  = '';
 
-    /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
-    public array $newAttachments = [];
+    // No array type hint — Livewire needs to hydrate TemporaryUploadedFile instances
+    public $newAttachments = [];
 
     private WhmcsService $whmcs;
 

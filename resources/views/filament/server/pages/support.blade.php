@@ -205,21 +205,21 @@
                                 {!! $this->linkify($this->ticket['message'] ?? '') !!}
                             </div>
                             @php
+                                $whmcsBase = rtrim(config('services.whmcs.url', ''), '/');
+                                $ticketC   = $this->ticket['c'] ?? '';
                                 $raw = $this->ticket['attachments']['attachment'] ?? [];
-                                // Normalise single attachment (assoc) to a list
                                 $openingAttachments = isset($raw['filename']) ? [$raw] : (array) $raw;
-                                // Only keep entries that have a real HTTP URL
                                 $openingAttachments = array_filter($openingAttachments, fn($a) =>
-                                    is_array($a) &&
-                                    !empty($a['filename']) &&
-                                    !empty($a['url']) &&
-                                    str_starts_with($a['url'], 'http')
+                                    is_array($a) && !empty($a['filename']) && isset($a['index'])
                                 );
                             @endphp
                             @if (!empty($openingAttachments))
                                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
                                     @foreach ($openingAttachments as $att)
-                                        <a href="{{ $att['url'] }}" target="_blank" rel="noopener"
+                                        @php
+                                            $attUrl = $whmcsBase . '/downloads/ticket/' . $ticketC . '/' . $att['index'] . '/' . rawurlencode($att['filename']);
+                                        @endphp
+                                        <a href="{{ $attUrl }}" target="_blank" rel="noopener"
                                             style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid var(--gray-200);font-size:0.75rem;color:var(--gray-600);text-decoration:none;background:var(--white,#fff);"
                                             onmouseover="this.style.background='var(--gray-50)'"
                                             onmouseout="this.style.background='var(--white,#fff)'"
@@ -265,20 +265,18 @@
                             </div>
                             @php
                                 $rawReply = $reply['attachments']['attachment'] ?? [];
-                                // Normalise single attachment (assoc) to a list
                                 $replyAtts = isset($rawReply['filename']) ? [$rawReply] : (array) $rawReply;
-                                // Only keep entries that have a real HTTP URL
                                 $replyAtts = array_filter($replyAtts, fn($a) =>
-                                    is_array($a) &&
-                                    !empty($a['filename']) &&
-                                    !empty($a['url']) &&
-                                    str_starts_with($a['url'], 'http')
+                                    is_array($a) && !empty($a['filename']) && isset($a['index'])
                                 );
                             @endphp
                             @if (!empty($replyAtts))
                                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;{{ $isAdmin ? '' : 'justify-content:flex-end;' }}">
                                     @foreach ($replyAtts as $att)
-                                        <a href="{{ $att['url'] }}" target="_blank" rel="noopener"
+                                        @php
+                                            $attUrl = $whmcsBase . '/downloads/ticket/' . $ticketC . '/' . $att['index'] . '/' . rawurlencode($att['filename']);
+                                        @endphp
+                                        <a href="{{ $attUrl }}" target="_blank" rel="noopener"
                                             style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid var(--gray-200);font-size:0.75rem;color:var(--gray-600);text-decoration:none;background:var(--white,#fff);"
                                             onmouseover="this.style.background='var(--gray-50)'"
                                             onmouseout="this.style.background='var(--white,#fff)'"
