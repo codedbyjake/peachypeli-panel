@@ -63,26 +63,148 @@
         <div x-show="panelVisible">
 
             @if ($panelType === 'rust')
-            {{-- ── Rust: world map via Rustmaps.com ── --}}
-            <div class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden">
+            {{-- ── Rust: interactive world map ── --}}
+            @php
+                $rustMonuments = $panelData['monuments'] ?? [];
+                $rustStats     = $panelData['stats'] ?? [];
+                $rustMapSize   = (int) ($panelData['size'] ?? 3500);
+            @endphp
+            <div
+                x-data="{
+                    showMarkers: true,
+                    hovered: null,
+                    mapSize: {{ $rustMapSize }},
+                    monuments: @json($rustMonuments),
+                    tierColor(tier) {
+                        const c = { danger: '#ef4444', medium: '#f59e0b', safe: '#22c55e', minor: '#9ca3af' };
+                        return c[tier] ?? '#9ca3af';
+                    },
+                    pinLeft(x) { return ((x + this.mapSize / 2) / this.mapSize * 100).toFixed(3) + '%'; },
+                    pinTop(y)  { return ((this.mapSize / 2 - y) / this.mapSize * 100).toFixed(3) + '%'; }
+                }"
+                class="rounded-xl ring-1 ring-gray-200 dark:ring-gray-700 overflow-hidden"
+            >
+                {{-- Header --}}
                 <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-2">
                     <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">World Map</span>
-                    @if ($panelData['seed'] ?? '')
-                        <span class="text-xs text-gray-400 dark:text-gray-500 tabular-nums shrink-0">
-                            {{ $panelData['seed'] }} &middot; {{ $panelData['size'] }}
-                        </span>
-                    @endif
+                    <div class="flex items-center gap-3 shrink-0">
+                        @if ($panelData['seed'] ?? '')
+                            <span class="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
+                                Seed: {{ $panelData['seed'] }} - Size: {{ $panelData['size'] }}
+                            </span>
+                        @endif
+                        @if (!empty($rustMonuments))
+                            <button
+                                x-on:click="showMarkers = !showMarkers"
+                                class="text-xs px-2 py-0.5 rounded transition-colors"
+                                :class="showMarkers
+                                    ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-400'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'"
+                            ><span x-text="showMarkers ? 'Markers on' : 'Markers off'"></span></button>
+                        @endif
+                    </div>
                 </div>
 
                 @if ($panelData['imageUrl'] ?? null)
-                    <a href="{{ $panelData['pageUrl'] }}" target="_blank" rel="noopener noreferrer" class="block">
-                        <img
-                            src="{{ $panelData['imageUrl'] }}"
-                            alt="World Map"
-                            class="w-full block"
-                            loading="lazy"
-                        >
-                    </a>
+                    {{-- Map image with monument pin overlay --}}
+                    <div class="relative" style="line-height:0">
+                        <a href="{{ $panelData['pageUrl'] }}" target="_blank" rel="noopener noreferrer">
+                            <img
+                                src="{{ $panelData['imageUrl'] }}"
+                                alt="World Map"
+                                class="w-full block"
+                                loading="lazy"
+                            >
+                        </a>
+
+                        {{-- Overlay: transparent layer for pins --}}
+                        <div class="absolute inset-0" style="pointer-events:none">
+                            <template x-if="showMarkers">
+                                <div class="absolute inset-0">
+                                    <template x-for="(mon, idx) in monuments" :key="idx">
+                                        <div
+                                            class="absolute"
+                                            :style="'left:' + pinLeft(mon.x) + ';top:' + pinTop(mon.y) + ';transform:translate(-50%,-50%);pointer-events:auto;cursor:default;z-index:10'"
+                                            x-on:mouseenter="hovered = idx"
+                                            x-on:mouseleave="hovered = null"
+                                            x-on:click.stop.prevent
+                                        >
+                                            {{-- Pin dot --}}
+                                            <div
+                                                class="rounded-full shadow-md"
+                                                :style="'width:9px;height:9px;background:' + tierColor(mon.tier) + ';border:1.5px solid rgba(255,255,255,0.8)'"
+                                            ></div>
+                                            {{-- Tooltip --}}
+                                            <div
+                                                x-show="hovered === idx"
+                                                x-transition.opacity
+                                                class="absolute bottom-full left-1/2 mb-1.5 px-2 py-1 rounded text-xs font-medium whitespace-nowrap shadow-lg"
+                                                style="transform:translateX(-50%);background:rgba(15,23,42,0.93);color:#f1f5f9;pointer-events:none;z-index:50"
+                                                x-text="mon.name"
+                                            ></div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    {{-- Legend & stats --}}
+                    <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 space-y-2.5">
+
+                        {{-- Tier legend --}}
+                        @if (!empty($rustMonuments))
+                            <div class="flex flex-wrap gap-x-4 gap-y-1">
+                                @foreach ([
+                                    ['danger', '#ef4444', 'High-tier'],
+                                    ['medium', '#f59e0b', 'Mid-tier'],
+                                    ['safe',   '#22c55e', 'Safe zone'],
+                                    ['minor',  '#9ca3af', 'Minor'],
+                                ] as [$tier, $color, $label])
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                              style="background:{{ $color }};border:1.5px solid rgba(255,255,255,0.5)"></span>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ $label }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        {{-- Map stats --}}
+                        @if (!empty($rustStats))
+                            <div class="grid grid-cols-2 gap-x-6 gap-y-1">
+                                @foreach ([
+                                    ['totalMonuments', 'Monuments'],
+                                    ['landPercentage', 'Land'],
+                                    ['rivers',         'Rivers'],
+                                    ['mountains',      'Mountains'],
+                                ] as [$key, $label])
+                                    @if ($rustStats[$key] ?? 0)
+                                        <div class="flex justify-between gap-2">
+                                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $label }}</span>
+                                            <span class="text-xs font-medium text-gray-700 dark:text-gray-200 tabular-nums">
+                                                {{ $rustStats[$key] }}{{ $key === 'landPercentage' ? '%' : '' }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                @endforeach
+                            </div>
+                        @endif
+
+                        {{-- Biomes --}}
+                        @if (!empty($rustStats['biomes']))
+                            <div class="pt-1 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-x-4 gap-y-1">
+                                @foreach ($rustStats['biomes'] as $biome => $pct)
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ ucfirst(strtolower($biome)) }}</span>
+                                        <span class="text-xs font-medium text-gray-700 dark:text-gray-200 tabular-nums">{{ $pct }}%</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                    </div>
+
                 @elseif ($panelData['seed'] ?? '')
                     <div class="p-5 flex flex-col items-center gap-3 text-center">
                         <x-filament::icon icon="tabler-map" class="h-10 w-10 text-gray-300 dark:text-gray-600" />
@@ -90,12 +212,10 @@
                             <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Seed: {{ $panelData['seed'] }}</p>
                             <p class="text-xs text-gray-500">Size: {{ $panelData['size'] }}</p>
                         </div>
-                        <a
-                            href="{{ $panelData['pageUrl'] }}"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="text-xs text-primary-600 dark:text-primary-400 hover:underline"
-                        >View on Rustmaps.com &rarr;</a>
+                        <a href="{{ $panelData['pageUrl'] }}" target="_blank" rel="noopener noreferrer"
+                           class="text-xs text-primary-600 dark:text-primary-400 hover:underline">
+                            View on Rustmaps.com &rarr;
+                        </a>
                         @if (!config('services.rustmaps.key'))
                             <p class="text-xs text-gray-400 dark:text-gray-500">
                                 Set <code class="font-mono">RUSTMAPS_API_KEY</code> to show a map preview.

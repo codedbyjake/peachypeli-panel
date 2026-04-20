@@ -201,8 +201,10 @@ class ServerConsole extends Widget
             return ['seed' => '', 'size' => $size, 'imageUrl' => null, 'pageUrl' => null];
         }
 
-        $pageUrl  = "https://rustmaps.com/map/{$size}_{$seed}";
-        $imageUrl = null;
+        $pageUrl   = "https://rustmaps.com/map/{$size}_{$seed}";
+        $imageUrl  = null;
+        $monuments = [];
+        $stats     = [];
 
         $apiKey = config('services.rustmaps.key');
         if ($apiKey) {
@@ -228,13 +230,90 @@ class ServerConsole extends Widget
             });
 
             if ($data) {
-                $payload  = $data['data'] ?? $data;
-                $imageUrl = $payload['imageUrl'] ?? $payload['thumbnailUrl'] ?? null;
-                $pageUrl  = $payload['url'] ?? $pageUrl;
+            $payload  = $data['data'] ?? $data;
+            $imageUrl = $payload['imageUrl'] ?? $payload['thumbnailUrl'] ?? null;
+            $pageUrl  = $payload['url'] ?? $pageUrl;
+
+            $typeMap   = $this->monumentTypeMap();
+            $monuments = [];
+            foreach ($payload['monuments'] ?? [] as $m) {
+                $type = $m['type'] ?? 0;
+                $info = $typeMap[$type] ?? null;
+                if ($info) {
+                    $monuments[] = [
+                        'x'    => $m['coordinates']['x'] ?? 0,
+                        'y'    => $m['coordinates']['y'] ?? 0,
+                        'name' => $m['nameOverride'] ?? $info['name'],
+                        'tier' => $info['tier'],
+                    ];
+                }
             }
+
+            $bp    = $payload['biomePercentages'] ?? null;
+            $stats = [
+                'totalMonuments'  => $payload['totalMonuments'] ?? 0,
+                'landPercentage'  => $payload['landPercentageOfMap'] ?? 0,
+                'rivers'          => $payload['rivers'] ?? 0,
+                'mountains'       => $payload['mountains'] ?? 0,
+                'biomes'          => $bp ? array_filter((array) $bp, fn ($v) => $v > 0) : [],
+            ];
         }
 
-        return compact('seed', 'size', 'imageUrl', 'pageUrl');
+        return compact('seed', 'size', 'imageUrl', 'pageUrl', 'monuments', 'stats');
+    }
+
+    private function monumentTypeMap(): array
+    {
+        return [
+            5    => ['name' => 'Gas Station',          'tier' => 'minor'],
+            10   => ['name' => 'Supermarket',           'tier' => 'minor'],
+            15   => ['name' => 'Warehouse',             'tier' => 'minor'],
+            20   => ['name' => 'Lighthouse',            'tier' => 'minor'],
+            25   => ['name' => 'Small Harbor',          'tier' => 'medium'],
+            30   => ['name' => 'Large Harbor',          'tier' => 'medium'],
+            35   => ['name' => 'Airfield',              'tier' => 'medium'],
+            40   => ['name' => 'Junkyard',              'tier' => 'minor'],
+            45   => ['name' => 'Launch Site',           'tier' => 'danger'],
+            50   => ['name' => 'Military Tunnels',      'tier' => 'danger'],
+            55   => ['name' => 'Power Plant',           'tier' => 'medium'],
+            60   => ['name' => 'Train Yard',            'tier' => 'medium'],
+            65   => ['name' => 'Water Treatment',       'tier' => 'medium'],
+            70   => ['name' => 'Dome',                  'tier' => 'medium'],
+            75   => ['name' => 'Bandit Camp',           'tier' => 'safe'],
+            80   => ['name' => 'Sewer Branch',          'tier' => 'minor'],
+            85   => ['name' => 'Satellite Dish',        'tier' => 'medium'],
+            90   => ['name' => 'Outpost',               'tier' => 'safe'],
+            95   => ['name' => 'Excavator',             'tier' => 'danger'],
+            100  => ['name' => 'Sulfur Quarry',         'tier' => 'minor'],
+            105  => ['name' => 'Stone Quarry',          'tier' => 'minor'],
+            110  => ['name' => 'HQM Quarry',            'tier' => 'minor'],
+            115  => ['name' => 'Large Oil Rig',         'tier' => 'danger'],
+            120  => ['name' => 'Small Oil Rig',         'tier' => 'danger'],
+            140  => ['name' => 'Fishing Village',       'tier' => 'minor'],
+            145  => ['name' => 'Fishing Village',       'tier' => 'minor'],
+            150  => ['name' => 'Fishing Village',       'tier' => 'minor'],
+            155  => ['name' => 'Water Well',            'tier' => 'minor'],
+            160  => ['name' => 'Water Well',            'tier' => 'minor'],
+            165  => ['name' => 'Water Well',            'tier' => 'minor'],
+            170  => ['name' => 'Water Well',            'tier' => 'minor'],
+            175  => ['name' => 'Water Well',            'tier' => 'minor'],
+            380  => ['name' => 'Stables',               'tier' => 'minor'],
+            385  => ['name' => 'Stables',               'tier' => 'minor'],
+            390  => ['name' => 'Tunnel Entrance',       'tier' => 'medium'],
+            395  => ['name' => 'Underwater Lab',        'tier' => 'danger'],
+            400  => ['name' => 'Underwater Lab',        'tier' => 'danger'],
+            405  => ['name' => 'Underwater Lab',        'tier' => 'danger'],
+            410  => ['name' => 'Underwater Lab',        'tier' => 'danger'],
+            415  => ['name' => 'Military Base',         'tier' => 'danger'],
+            420  => ['name' => 'Military Base',         'tier' => 'danger'],
+            425  => ['name' => 'Military Base',         'tier' => 'danger'],
+            430  => ['name' => 'Military Base',         'tier' => 'danger'],
+            435  => ['name' => 'Arctic Research Base',  'tier' => 'danger'],
+            440  => ['name' => 'Nuclear Missile Silo',  'tier' => 'danger'],
+            445  => ['name' => 'Ferry Terminal',        'tier' => 'medium'],
+            475  => ['name' => 'Radtown',               'tier' => 'danger'],
+            10000 => ['name' => 'Custom Monument',      'tier' => 'minor'],
+        ];
     }
 
     private function buildArkPanelData(): array
