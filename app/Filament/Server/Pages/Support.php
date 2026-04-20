@@ -134,6 +134,12 @@ class Support extends Page
             'replyAttachments.*' => 'file|max:10240',
         ]);
 
+        Log::info('WHMCS Support submitReply: starting', [
+            'ticket_id'       => $this->ticket['ticketid'] ?? 'unknown',
+            'attachment_count' => count($this->replyAttachments),
+            'attachment_types' => array_map(fn($f) => get_class($f), $this->replyAttachments),
+        ]);
+
         try {
             $ticketId = (int) $this->ticket['ticketid'];
             $message  = $this->appendS3Links($this->replyMessage, $this->replyAttachments, "support-attachments/{$ticketId}");
@@ -160,6 +166,11 @@ class Support extends Page
             'newMessage'       => 'required|min:20',
             'newAttachments'   => 'nullable|array',
             'newAttachments.*' => 'file|max:10240',
+        ]);
+
+        Log::info('WHMCS Support submitNewTicket: starting', [
+            'attachment_count' => count($this->newAttachments),
+            'attachment_types' => array_map(fn($f) => get_class($f), $this->newAttachments),
         ]);
 
         try {
@@ -206,19 +217,36 @@ class Support extends Page
      */
     private function appendS3Links(string $message, array $files, string $folder): string
     {
+        Log::info('WHMCS Support appendS3Links called', [
+            'folder'     => $folder,
+            'file_count' => count($files),
+            'file_types' => array_map(fn($f) => get_class($f), $files),
+        ]);
+
         if (empty($files)) {
+            Log::info('WHMCS Support appendS3Links: no files, returning original message');
             return $message;
         }
 
         $urls = $this->uploadToS3($files, $folder);
 
+        Log::info('WHMCS Support appendS3Links: upload complete', [
+            'urls_generated' => $urls,
+        ]);
+
         if (empty($urls)) {
+            Log::warning('WHMCS Support appendS3Links: no URLs returned, message unchanged');
             return $message;
         }
 
-        $links = implode("\n", array_map(fn($url) => "📎 {$url}", $urls));
+        $links       = implode("\n", array_map(fn($url) => "📎 {$url}", $urls));
+        $finalMessage = $message . "\n\n--- Attachments ---\n" . $links;
 
-        return $message . "\n\n--- Attachments ---\n" . $links;
+        Log::info('WHMCS Support appendS3Links: final message body', [
+            'final_message' => $finalMessage,
+        ]);
+
+        return $finalMessage;
     }
 
     /**
@@ -232,8 +260,18 @@ class Support extends Page
     {
         $cfg = config('backups.disks.s3');
 
+        Log::info('WHMCS Support uploadToS3 called', [
+            'folder'     => $folder,
+            'file_count' => count($files),
+            's3_bucket'  => $cfg['bucket'] ?? 'NOT SET',
+            's3_region'  => $cfg['region'] ?? 'NOT SET',
+            's3_endpoint' => $cfg['endpoint'] ?? 'none',
+            's3_key_set'  => !empty($cfg['key']),
+            's3_secret_set' => !empty($cfg['secret']),
+        ]);
+
         if (empty($cfg['key']) || empty($cfg['secret']) || empty($cfg['bucket'])) {
-            Log::warning('WHMCS Support: S3 not configured for attachment uploads');
+            Log::warning('WHMCS Support: S3 not configured — missing key, secret, or bucket');
             return [];
         }
 
@@ -258,8 +296,11 @@ class Support extends Page
         $bucket = $cfg['bucket'];
         $urls   = [];
 
-        foreach ($files as $file) {
+        foreach ($files as $i => $file) {
             if (!$file instanceof UploadedFile) {
+                Log::warning("WHMCS Support uploadToS3: item {$i} is not an UploadedFile", [
+                    'type' => get_class($file),
+                ]);
                 continue;
             }
 
@@ -267,8 +308,18 @@ class Support extends Page
                 . '.' . $file->getClientOriginalExtension();
             $key = trim($folder, '/') . '/' . $filename;
 
+            Log::info("WHMCS Support uploadToS3: uploading file {$i}", [
+                'original_name' => $file->getClientOriginalName(),
+                'slugged_name'  => $filename,
+                'key'           => $key,
+                'size'          => $file->getSize(),
+                'mime'          => $file->getMimeType(),
+                'real_path'     => $file->getRealPath(),
+                'real_path_exists' => file_exists($file->getRealPath() ?? ''),
+            ]);
+
             try {
-                $client->putObject([
+                $result = $client->putObject([
                     'Bucket'      => $bucket,
                     'Key'         => $key,
                     'Body'        => fopen($file->getRealPath(), 'r'),
@@ -276,9 +327,21 @@ class Support extends Page
                     'ACL'         => 'public-read',
                 ]);
 
-                $urls[] = $this->buildS3Url($cfg, $bucket, $key);
+                $url = $this->buildS3Url($cfg, $bucket, $key);
+
+                Log::info("WHMCS Support uploadToS3: file {$i} uploaded", [
+                    'key'          => $key,
+                    'etag'         => $result['ETag'] ?? 'n/a',
+                    'generated_url' => $url,
+                ]);
+
+                $urls[] = $url;
             } catch (\Exception $e) {
-                Log::error('WHMCS Support S3 upload failed: ' . $e->getMessage(), ['key' => $key]);
+                Log::error("WHMCS Support uploadToS3: file {$i} FAILED", [
+                    'key'   => $key,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
             }
         }
 
