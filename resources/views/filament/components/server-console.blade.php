@@ -467,6 +467,9 @@
             } else if (playerListMode === 'ark') {
                 console.log('[ARK playerlist]', JSON.stringify(line));
 
+                // ARK RCON heartbeat — not player data, ignore
+                if (/^keep alive$/i.test(line)) return;
+
                 // "No Players Connected" and common variants → 0 players, still available
                 if (/^no (?:players? connected|connected players?)/i.test(line) ||
                     /^0 players? online/i.test(line)) {
@@ -574,7 +577,7 @@
             const commands = {
                 minecraft: 'list',
                 rust:      'status',
-                ark:       'listplayers',
+                ark:       'cheat listplayers',
                 valheim:   'players',
                 palworld:  'ShowPlayers',
                 fivem:     'status',
@@ -587,15 +590,26 @@
                 'args': [command],
             }));
 
+            // ARK fallback: after 2 s, if cheat listplayers produced nothing, also fire
+            // GetCurrentPlayerCount so its raw response appears in the debug log alongside.
+            if (gameType === 'ark') {
+                setTimeout(() => {
+                    if (playerListMode === 'ark' && !playerListFoundHeader && playerListPlayers.length === 0) {
+                        console.log('[ARK playerlist] cheat listplayers produced no data — sending GetCurrentPlayerCount');
+                        socket.send(JSON.stringify({ 'event': 'send command', 'args': ['GetCurrentPlayerCount'] }));
+                    }
+                }, 2000);
+            }
+
             // For countless games flush with available=true if a header or any players were seen.
             playerListTimeout = setTimeout(() => {
-                // If ARK returned output but nothing parsed, show a debug notification so the
-                // raw lines are visible and the regex can be adjusted accordingly.
+                // If ARK returned output but nothing parsed, report every raw line captured
+                // so it is visible in the panel notification and browser console.
                 if (playerListMode === 'ark' && playerListRawLines.length > 0 && playerListPlayers.length === 0 && !playerListFoundHeader) {
-                    const preview = playerListRawLines.slice(0, 10).join('\n');
-                    console.warn('[ARK playerlist] No players parsed from output:\n' + preview);
+                    const preview = playerListRawLines.slice(0, 20).join('\n');
+                    console.warn('[ARK playerlist] No players parsed. Raw output:\n' + preview);
                     Livewire.dispatch('rcon-command-response', {
-                        label: 'ARK Player List — Debug (no players parsed)',
+                        label: 'ARK Player List — Debug',
                         response: preview,
                     });
                 }
@@ -603,7 +617,7 @@
                     ? (playerListFoundHeader || playerListPlayers.length > 0)
                     : false
                 );
-            }, 5000);
+            }, 8000);
         });
         // ─────────────────────────────────────────────────────────────────────
 
