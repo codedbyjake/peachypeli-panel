@@ -10,10 +10,10 @@
                         Livewire.dispatch('request-player-list', { gameType: '{{ $this->gameType }}' });
                     }, 1500);
 
-                    // Poll every 30 seconds
+                    // Poll once per hour
                     setInterval(() => {
                         Livewire.dispatch('request-player-list', { gameType: '{{ $this->gameType }}' });
-                    }, 30000);
+                    }, 3600000);
                 }
             }"
         >
