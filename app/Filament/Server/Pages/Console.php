@@ -175,7 +175,12 @@ class Console extends Page
                         /** @var Server $server */
                         $server = Filament::getTenant();
 
-                        return 'steam://connect/' . ($server->allocation?->address ?? '');
+                        $address = $server->allocation?->address ?? '';
+                        $appId   = $this->getSteamAppId($server);
+
+                        return $appId
+                            ? "steam://run/{$appId}//+connect {$address}/"
+                            : "steam://connect/{$address}";
                     })
                     ->visible(function () {
                         /** @var Server $server */
@@ -228,6 +233,29 @@ class Console extends Page
                 })
                 ->buttonGroup(),
         ];
+    }
+
+    private function getSteamAppId(Server $server): ?int
+    {
+        $egg  = $server->egg;
+        $name = strtolower($egg?->name ?? '');
+        $tags = array_map('strtolower', $egg?->tags ?? []);
+
+        $map = [
+            'rust'     => [252490, ['rust']],
+            'ark'      => [346110, ['ark']],
+            'valheim'  => [892970, ['valheim']],
+            'palworld' => [1623730, ['palworld']],
+            'fivem'    => [227300, ['fivem', 'gta']],
+        ];
+
+        foreach ($map as $keyword => [$appId, $extraTags]) {
+            if (str_contains($name, $keyword) || array_intersect($tags, [$keyword, ...$extraTags])) {
+                return $appId;
+            }
+        }
+
+        return null;
     }
 
     private function isMinecraftServer(Server $server): bool
