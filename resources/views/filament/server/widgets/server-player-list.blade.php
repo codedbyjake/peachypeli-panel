@@ -401,6 +401,347 @@
                         </div>
                     @endforeach
                 </div>
+            @elseif ($this->gameType === 'ark')
+                {{-- ARK: table-style rows with per-player moderation actions --}}
+                <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                    @foreach ($this->players as $player)
+                        @php
+                            $pName      = is_array($player) ? ($player['name']    ?? '?') : $player;
+                            $pSteamId   = is_array($player) ? ($player['steamId'] ?? '')  : '';
+                            $pNameSafe  = e($pName);
+                        @endphp
+                        <div
+                            x-data="{
+                                pending:     false,
+                                cmd:         '',
+                                lbl:         '',
+                                reason:      '',
+                                needsReason: false,
+                                moreOpen:    false,
+
+                                ask(command, label, withReason = false) {
+                                    this.cmd         = command;
+                                    this.lbl         = label;
+                                    this.reason      = '';
+                                    this.needsReason = withReason;
+                                    this.pending     = true;
+                                    this.moreOpen    = false;
+                                },
+                                confirm() {
+                                    const fullCmd = (this.needsReason && this.reason.trim())
+                                        ? this.cmd + ' ' + this.reason.trim()
+                                        : this.cmd;
+                                    Livewire.dispatch('execute-rcon-command', {
+                                        command: fullCmd,
+                                        label:   this.lbl,
+                                    });
+                                    this.pending = false;
+                                },
+                                cancel() { this.pending = false; }
+                            }"
+                            class="flex justify-between gap-4 py-3 px-1 first:pt-1 last:pb-1"
+                            :class="pending ? 'items-start' : 'items-center'"
+                        >
+                            {{-- Left: player info --}}
+                            <div class="flex items-center gap-2 min-w-0">
+                                <x-filament::icon icon="tabler-user" class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500" />
+                                <span class="text-sm font-semibold truncate text-gray-800 dark:text-gray-200">{{ $pName }}</span>
+                                @if ($pSteamId)
+                                    <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0 font-mono">{{ $pSteamId }}</span>
+                                @endif
+                            </div>
+
+                            {{-- Right: actions --}}
+                            @if ($pSteamId)
+                                <div class="shrink-0">
+                                    <template x-if="!pending">
+                                        <div class="flex items-center gap-2">
+                                            <x-filament::button icon="tabler-player-eject" color="warning" size="sm"
+                                                x-on:click="ask('KickPlayer {{ $pSteamId }}', 'Kick {{ $pNameSafe }}')"
+                                            >Kick</x-filament::button>
+
+                                            <x-filament::button icon="tabler-ban" color="danger" size="sm"
+                                                x-on:click="ask('BanPlayer {{ $pSteamId }}', 'Ban {{ $pNameSafe }}')"
+                                            >Ban</x-filament::button>
+
+                                            <div class="relative" x-on:click.outside="moreOpen = false">
+                                                <x-filament::button icon="tabler-dots" color="gray" size="sm"
+                                                    x-on:click="moreOpen = !moreOpen"
+                                                >More</x-filament::button>
+                                                <div x-show="moreOpen" x-transition
+                                                    class="absolute right-0 z-20 mt-1 w-40 rounded-lg bg-white dark:bg-gray-900 shadow-lg ring-1 ring-gray-200 dark:ring-gray-700 py-1"
+                                                >
+                                                    <button class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        x-on:click="moreOpen = false; ask('UnBanPlayer {{ $pSteamId }}', 'Unban {{ $pNameSafe }}')"
+                                                    >Unban</button>
+                                                    <button class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        x-on:click="moreOpen = false; ask('broadcast', 'Broadcast', true)"
+                                                    >Broadcast Message</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="pending">
+                                        <div class="flex flex-col items-end gap-2">
+                                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap" x-text="lbl + '?'"></p>
+                                            <template x-if="needsReason">
+                                                <input type="text" x-model="reason"
+                                                    :placeholder="lbl.startsWith('Broadcast') ? 'Message' : 'Reason (optional)'"
+                                                    x-on:keydown.enter="confirm()" x-on:keydown.escape="cancel()"
+                                                    class="w-52 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                >
+                                            </template>
+                                            <div class="flex items-center gap-2">
+                                                <x-filament::button icon="tabler-check" color="success" size="sm" x-on:click="confirm()">Confirm</x-filament::button>
+                                                <x-filament::button icon="tabler-x" color="gray" size="sm" x-on:click="cancel()">Cancel</x-filament::button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+
+            @elseif ($this->gameType === 'valheim')
+                {{-- Valheim: table-style rows with per-player moderation actions --}}
+                <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                    @foreach ($this->players as $player)
+                        @php
+                            $pName      = is_array($player) ? ($player['name']   ?? '?') : $player;
+                            $pUserId    = is_array($player) ? ($player['userId'] ?? '')  : '';
+                            $pNameSafe  = e($pName);
+                            $pUnbanId   = $pUserId ?: $pNameSafe;
+                        @endphp
+                        <div
+                            x-data="{
+                                pending:     false,
+                                cmd:         '',
+                                lbl:         '',
+                                reason:      '',
+                                needsReason: false,
+                                moreOpen:    false,
+
+                                ask(command, label, withReason = false) {
+                                    this.cmd         = command;
+                                    this.lbl         = label;
+                                    this.reason      = '';
+                                    this.needsReason = withReason;
+                                    this.pending     = true;
+                                    this.moreOpen    = false;
+                                },
+                                confirm() {
+                                    const fullCmd = (this.needsReason && this.reason.trim())
+                                        ? this.cmd + ' ' + this.reason.trim()
+                                        : this.cmd;
+                                    Livewire.dispatch('execute-rcon-command', { command: fullCmd, label: this.lbl });
+                                    this.pending = false;
+                                },
+                                cancel() { this.pending = false; }
+                            }"
+                            class="flex justify-between gap-4 py-3 px-1 first:pt-1 last:pb-1"
+                            :class="pending ? 'items-start' : 'items-center'"
+                        >
+                            <div class="flex items-center gap-2 min-w-0">
+                                <x-filament::icon icon="tabler-user" class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500" />
+                                <span class="text-sm font-semibold truncate text-gray-800 dark:text-gray-200">{{ $pName }}</span>
+                                @if ($pUserId)
+                                    <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0 font-mono">{{ $pUserId }}</span>
+                                @endif
+                            </div>
+
+                            <div class="shrink-0">
+                                <template x-if="!pending">
+                                    <div class="flex items-center gap-2">
+                                        <x-filament::button icon="tabler-player-eject" color="warning" size="sm"
+                                            x-on:click="ask('kick {{ $pNameSafe }}', 'Kick {{ $pNameSafe }}')"
+                                        >Kick</x-filament::button>
+
+                                        <x-filament::button icon="tabler-ban" color="danger" size="sm"
+                                            x-on:click="ask('ban {{ $pNameSafe }}', 'Ban {{ $pNameSafe }}')"
+                                        >Ban</x-filament::button>
+
+                                        <div class="relative" x-on:click.outside="moreOpen = false">
+                                            <x-filament::button icon="tabler-dots" color="gray" size="sm"
+                                                x-on:click="moreOpen = !moreOpen"
+                                            >More</x-filament::button>
+                                            <div x-show="moreOpen" x-transition
+                                                class="absolute right-0 z-20 mt-1 w-40 rounded-lg bg-white dark:bg-gray-900 shadow-lg ring-1 ring-gray-200 dark:ring-gray-700 py-1"
+                                            >
+                                                <button class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                    x-on:click="moreOpen = false; ask('unban {{ $pUnbanId }}', 'Unban {{ $pNameSafe }}')"
+                                                >Unban</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <template x-if="pending">
+                                    <div class="flex flex-col items-end gap-2">
+                                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap" x-text="lbl + '?'"></p>
+                                        <template x-if="needsReason">
+                                            <input type="text" x-model="reason" placeholder="Reason (optional)"
+                                                x-on:keydown.enter="confirm()" x-on:keydown.escape="cancel()"
+                                                class="w-52 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                            >
+                                        </template>
+                                        <div class="flex items-center gap-2">
+                                            <x-filament::button icon="tabler-check" color="success" size="sm" x-on:click="confirm()">Confirm</x-filament::button>
+                                            <x-filament::button icon="tabler-x" color="gray" size="sm" x-on:click="cancel()">Cancel</x-filament::button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+            @elseif ($this->gameType === 'palworld')
+                {{-- Palworld: table-style rows with per-player moderation actions --}}
+                <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                    @foreach ($this->players as $player)
+                        @php
+                            $pName      = is_array($player) ? ($player['name']    ?? '?') : $player;
+                            $pSteamId   = is_array($player) ? ($player['steamId'] ?? '')  : '';
+                            $pNameSafe  = e($pName);
+                        @endphp
+                        <div
+                            x-data="{
+                                pending: false,
+                                cmd:     '',
+                                lbl:     '',
+
+                                ask(command, label) {
+                                    this.cmd     = command;
+                                    this.lbl     = label;
+                                    this.pending = true;
+                                },
+                                confirm() {
+                                    Livewire.dispatch('execute-rcon-command', { command: this.cmd, label: this.lbl });
+                                    this.pending = false;
+                                },
+                                cancel() { this.pending = false; }
+                            }"
+                            class="flex justify-between gap-4 py-3 px-1 first:pt-1 last:pb-1"
+                            :class="pending ? 'items-start' : 'items-center'"
+                        >
+                            <div class="flex items-center gap-2 min-w-0">
+                                <x-filament::icon icon="tabler-user" class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500" />
+                                <span class="text-sm font-semibold truncate text-gray-800 dark:text-gray-200">{{ $pName }}</span>
+                                @if ($pSteamId)
+                                    <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0 font-mono">{{ $pSteamId }}</span>
+                                @endif
+                            </div>
+
+                            @if ($pSteamId)
+                                <div class="shrink-0">
+                                    <template x-if="!pending">
+                                        <div class="flex items-center gap-2">
+                                            <x-filament::button icon="tabler-player-eject" color="warning" size="sm"
+                                                x-on:click="ask('KickPlayer {{ $pSteamId }}', 'Kick {{ $pNameSafe }}')"
+                                            >Kick</x-filament::button>
+
+                                            <x-filament::button icon="tabler-ban" color="danger" size="sm"
+                                                x-on:click="ask('BanPlayer {{ $pSteamId }}', 'Ban {{ $pNameSafe }}')"
+                                            >Ban</x-filament::button>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="pending">
+                                        <div class="flex flex-col items-end gap-2">
+                                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap" x-text="lbl + '?'"></p>
+                                            <div class="flex items-center gap-2">
+                                                <x-filament::button icon="tabler-check" color="success" size="sm" x-on:click="confirm()">Confirm</x-filament::button>
+                                                <x-filament::button icon="tabler-x" color="gray" size="sm" x-on:click="cancel()">Cancel</x-filament::button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+
+            @elseif ($this->gameType === 'fivem')
+                {{-- FiveM: table-style rows with per-player moderation actions --}}
+                <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                    @foreach ($this->players as $player)
+                        @php
+                            $pName      = is_array($player) ? ($player['name']     ?? '?') : $player;
+                            $pPlayerId  = is_array($player) ? ($player['playerId'] ?? '')  : '';
+                            $pNameSafe  = e($pName);
+                        @endphp
+                        <div
+                            x-data="{
+                                pending:     false,
+                                cmd:         '',
+                                lbl:         '',
+                                reason:      '',
+                                needsReason: false,
+
+                                ask(command, label, withReason = false) {
+                                    this.cmd         = command;
+                                    this.lbl         = label;
+                                    this.reason      = '';
+                                    this.needsReason = withReason;
+                                    this.pending     = true;
+                                },
+                                confirm() {
+                                    const fullCmd = (this.needsReason && this.reason.trim())
+                                        ? this.cmd + ' ' + this.reason.trim()
+                                        : this.cmd;
+                                    Livewire.dispatch('execute-rcon-command', { command: fullCmd, label: this.lbl });
+                                    this.pending = false;
+                                },
+                                cancel() { this.pending = false; }
+                            }"
+                            class="flex justify-between gap-4 py-3 px-1 first:pt-1 last:pb-1"
+                            :class="pending ? 'items-start' : 'items-center'"
+                        >
+                            <div class="flex items-center gap-2 min-w-0">
+                                <x-filament::icon icon="tabler-user" class="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500" />
+                                <span class="text-sm font-semibold truncate text-gray-800 dark:text-gray-200">{{ $pName }}</span>
+                                @if ($pPlayerId !== '')
+                                    <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">#{{ $pPlayerId }}</span>
+                                @endif
+                            </div>
+
+                            @if ($pPlayerId !== '')
+                                <div class="shrink-0">
+                                    <template x-if="!pending">
+                                        <div class="flex items-center gap-2">
+                                            <x-filament::button icon="tabler-player-eject" color="warning" size="sm"
+                                                x-on:click="ask('clientkick {{ $pPlayerId }}', 'Kick {{ $pNameSafe }}', true)"
+                                            >Kick</x-filament::button>
+
+                                            <x-filament::button icon="tabler-ban" color="danger" size="sm"
+                                                x-on:click="ask('tempbanclient {{ $pPlayerId }}', 'Temp Ban {{ $pNameSafe }}', true)"
+                                            >Temp Ban</x-filament::button>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="pending">
+                                        <div class="flex flex-col items-end gap-2">
+                                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap" x-text="lbl + '?'"></p>
+                                            <template x-if="needsReason">
+                                                <input type="text" x-model="reason" placeholder="Reason (optional)"
+                                                    x-on:keydown.enter="confirm()" x-on:keydown.escape="cancel()"
+                                                    class="w-52 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                >
+                                            </template>
+                                            <div class="flex items-center gap-2">
+                                                <x-filament::button icon="tabler-check" color="success" size="sm" x-on:click="confirm()">Confirm</x-filament::button>
+                                                <x-filament::button icon="tabler-x" color="gray" size="sm" x-on:click="cancel()">Cancel</x-filament::button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+
             @else
                 {{-- Other games: simple name grid --}}
                 <ul class="grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">

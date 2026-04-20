@@ -60,6 +60,22 @@ class ServerPlayerList extends Widget
             return 'rust';
         }
 
+        if (str_contains($name, 'ark') || in_array('ark', $tags)) {
+            return 'ark';
+        }
+
+        if (str_contains($name, 'valheim') || in_array('valheim', $tags)) {
+            return 'valheim';
+        }
+
+        if (str_contains($name, 'palworld') || in_array('palworld', $tags)) {
+            return 'palworld';
+        }
+
+        if (str_contains($name, 'fivem') || in_array('fivem', $tags) || in_array('gta', $tags)) {
+            return 'fivem';
+        }
+
         return 'unknown';
     }
 

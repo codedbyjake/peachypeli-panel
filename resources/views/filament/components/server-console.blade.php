@@ -405,12 +405,13 @@
         };
 
         // ── Player list intercept state ──────────────────────────────────────────
-        let playerListMode = null;     // null | 'minecraft' | 'rust'
+        let playerListMode = null;     // null | 'minecraft' | 'rust' | 'ark' | 'valheim' | 'palworld' | 'fivem'
         let playerListPlayers = [];
         let playerListCount = 0;
         let playerListMax = 0;
         let playerListFoundHeader = false;
         let playerListTimeout = null;
+        let playerListCountless = false; // games that don't emit a total count header
 
         const stripAnsi = (str) => str
             .replace(/\x1b\[[\d;]*[A-Za-z]/g, '')  // ANSI escape sequences
@@ -461,6 +462,60 @@
                     }
                 }
 
+            } else if (playerListMode === 'ark') {
+                // "No Players Connected" → zero players, still available
+                if (/^no players connected/i.test(line)) {
+                    playerListFoundHeader = true;
+                    flushPlayerList(true);
+                    return;
+                }
+                // "0. PlayerName, 76561198012345678"
+                const arkMatch = line.match(/^\d+\.\s+(.+),\s+(76561\d{12})\s*$/);
+                if (arkMatch) {
+                    playerListFoundHeader = true;
+                    playerListPlayers.push({ name: arkMatch[1].trim(), steamId: arkMatch[2] });
+                }
+
+            } else if (playerListMode === 'valheim') {
+                // Header variants: "Players:" / "Player list:" / "Connected players:"
+                if (/^(?:player\s*(?:list)?|connected\s*players?)\s*:?\s*$/i.test(line)) {
+                    playerListFoundHeader = true;
+                    return;
+                }
+                // "PlayerName - userid" or "PlayerName userid" or bare "PlayerName"
+                const vhMatch = line.match(/^(.+?)(?:\s*[-–]\s*(\S+))?\s*$/);
+                if (vhMatch && vhMatch[1].trim() && !/^(server|hostname|version|day|players?|world)/i.test(vhMatch[1])) {
+                    playerListFoundHeader = true;
+                    playerListPlayers.push({ name: vhMatch[1].trim(), userId: vhMatch[2] || '' });
+                }
+
+            } else if (playerListMode === 'palworld') {
+                // CSV header: "name,playeruid,steamid"
+                if (/^name,playeruid,steamid/i.test(line)) {
+                    playerListFoundHeader = true;
+                    return;
+                }
+                if (playerListFoundHeader) {
+                    const parts = line.split(',');
+                    if (parts.length >= 3 && parts[0].trim()) {
+                        playerListPlayers.push({ name: parts[0].trim(), steamId: parts[2].trim() });
+                    }
+                }
+
+            } else if (playerListMode === 'fivem') {
+                // Status header: "ID  IP  Ping  Player"
+                if (/^\s*ID\s+IP\s+Ping\s+Player/i.test(line)) {
+                    playerListFoundHeader = true;
+                    return;
+                }
+                if (playerListFoundHeader) {
+                    // "  0   127.0.0.1:12345   15   PlayerName"
+                    const fmMatch = line.match(/^\s*(\d+)\s+\S+\s+\d+\s+(.+?)\s*$/);
+                    if (fmMatch) {
+                        playerListPlayers.push({ name: fmMatch[2].trim(), playerId: fmMatch[1] });
+                    }
+                }
+
             } else if (playerListMode === 'rust') {
                 // "players : X (Y max) (0 queued) ..."
                 const countMatch = line.match(/^players\s*:\s*(\d+)\s*\((\d+)\s*max\)/i);
@@ -502,21 +557,36 @@
 
             // Reset state for a fresh capture
             clearTimeout(playerListTimeout);
-            playerListMode = gameType;
-            playerListPlayers = [];
-            playerListCount = 0;
-            playerListMax = 0;
-            playerListFoundHeader = false;
+            playerListMode         = gameType;
+            playerListPlayers      = [];
+            playerListCount        = 0;
+            playerListMax          = 0;
+            playerListFoundHeader  = false;
+            playerListCountless    = ['ark', 'valheim', 'palworld', 'fivem'].includes(gameType);
 
-            const command = gameType === 'minecraft' ? 'list' : 'status';
+            const commands = {
+                minecraft: 'list',
+                rust:      'status',
+                ark:       'listplayers',
+                valheim:   'players',
+                palworld:  'ShowPlayers',
+                fivem:     'status',
+            };
+            const command = commands[gameType];
+            if (!command) return;
 
             socket.send(JSON.stringify({
                 'event': 'send command',
                 'args': [command],
             }));
 
-            // Time-out after 5 s if no usable response arrives
-            playerListTimeout = setTimeout(() => flushPlayerList(false), 5000);
+            // For countless games flush with available=true if a header or any players were seen.
+            playerListTimeout = setTimeout(() => {
+                flushPlayerList(playerListCountless
+                    ? (playerListFoundHeader || playerListPlayers.length > 0)
+                    : false
+                );
+            }, 5000);
         });
         // ─────────────────────────────────────────────────────────────────────
 
