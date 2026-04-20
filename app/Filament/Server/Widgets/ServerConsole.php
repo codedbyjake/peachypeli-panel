@@ -206,12 +206,12 @@ class ServerConsole extends Widget
 
         $apiKey = config('services.rustmaps.key');
         if ($apiKey) {
-            $cacheKey = "rustmap.v4d.{$size}.{$seed}";
+            $cacheKey = "rustmap.v4e.{$size}.{$seed}";
             $data     = cache()->remember($cacheKey, now()->addHours(24), function () use ($seed, $size, $apiKey) {
                 $response = Http::withHeaders(['X-API-Key' => $apiKey])
                     ->timeout(8)
                     ->get("https://api.rustmaps.com/v4/maps/{$size}/{$seed}", [
-                        'staging' => false,
+                        'staging' => 'false',
                     ]);
 
                 \Illuminate\Support\Facades\Log::info('Rustmaps API raw response', [
