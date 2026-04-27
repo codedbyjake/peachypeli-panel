@@ -364,6 +364,25 @@
                         placeholder="Brief description of your issue" class="sp-input">
                 </div>
 
+                {{-- Service --}}
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                    <label style="font-size:0.875rem;font-weight:500;color:var(--gray-700);">
+                        Service
+                        <span style="font-size:0.75rem;font-weight:400;color:var(--danger-500);">*</span>
+                    </label>
+                    @error('newServiceId')
+                        <p style="font-size:0.75rem;color:var(--danger-600);">{{ $message }}</p>
+                    @enderror
+                    <select wire:model="newServiceId" class="sp-select" required>
+                        <option value="">Select a service…</option>
+                        @foreach ($this->services as $svc)
+                            <option value="{{ $svc['id'] }}">
+                                {{ $svc['name'] }}{{ $svc['domain'] ? ' — ' . $svc['domain'] : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 {{-- Department + Priority --}}
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
                     <div style="display:flex;flex-direction:column;gap:4px;">

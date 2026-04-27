@@ -41,6 +41,9 @@ class Support extends Page
     /** @var array<int, array<string, mixed>> */
     public array $departments = [];
 
+    /** @var array<int, array<string, mixed>> */
+    public array $services = [];
+
     public ?int $whmcsClientId = null;
 
     // ── UI state ─────────────────────────────────────────────────────────────
@@ -55,10 +58,11 @@ class Support extends Page
     public $replyAttachments = [];
 
     // ── New ticket form ───────────────────────────────────────────────────────
-    public string $newSubject  = '';
-    public string $newDeptId   = '';
-    public string $newPriority = 'Medium';
-    public string $newMessage  = '';
+    public string $newSubject    = '';
+    public string $newDeptId    = '';
+    public string $newServiceId = '';
+    public string $newPriority  = 'Medium';
+    public string $newMessage   = '';
 
     // No array type hint — Livewire needs to hydrate TemporaryUploadedFile instances
     public $newAttachments = [];
@@ -97,6 +101,7 @@ class Support extends Page
 
             $this->tickets     = $this->whmcs->getTickets($this->whmcsClientId);
             $this->departments = $this->whmcs->getDepartments();
+            $this->services    = $this->whmcs->getClientProducts($this->whmcsClientId);
         } catch (\Exception $e) {
             Log::error('WHMCS Support initialise error: ' . $e->getMessage());
             $this->error = trans('server/support.unavailable');
@@ -173,6 +178,7 @@ class Support extends Page
         $this->validate([
             'newSubject'       => 'required|min:5|max:255',
             'newDeptId'        => 'required',
+            'newServiceId'     => 'required',
             'newPriority'      => 'required|in:Low,Medium,High',
             'newMessage'       => 'required|min:20',
             'newAttachments'   => 'nullable|array',
@@ -198,6 +204,7 @@ class Support extends Page
                 $this->newSubject,
                 $message,
                 $this->newPriority,
+                $this->newServiceId !== '' ? (int) $this->newServiceId : null,
             );
         } catch (\Exception $e) {
             Log::error('WHMCS Support submitNewTicket error: ' . $e->getMessage());
@@ -207,6 +214,7 @@ class Support extends Page
 
         $this->newSubject     = '';
         $this->newDeptId      = '';
+        $this->newServiceId   = '';
         $this->newMessage     = '';
         $this->newPriority    = 'Medium';
         $this->newAttachments = [];
@@ -457,6 +465,7 @@ class Support extends Page
         $this->currentView    = 'create';
         $this->newSubject     = '';
         $this->newDeptId      = '';
+        $this->newServiceId   = '';
         $this->newMessage     = '';
         $this->newPriority    = 'Medium';
         $this->newAttachments = [];

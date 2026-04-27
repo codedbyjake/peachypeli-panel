@@ -114,6 +114,25 @@ class WhmcsService
     }
 
     /** @return array<int, array<string, mixed>> */
+    public function getClientProducts(int $clientId): array
+    {
+        $data     = $this->call('GetClientsProducts', ['clientid' => $clientId, 'limitnum' => 100]);
+        $products = $data['products']['product'] ?? [];
+
+        $normalised = isset($products[0]) ? $products : ($products ? [$products] : []);
+
+        return array_values(array_filter(
+            array_map(fn (array $p): array => [
+                'id'     => (int) ($p['id'] ?? 0),
+                'name'   => $p['name'] ?? 'Unknown',
+                'domain' => $p['domain'] ?? '',
+                'status' => $p['status'] ?? '',
+            ], $normalised),
+            fn (array $p): bool => $p['id'] > 0 && strtolower($p['status']) === 'active',
+        ));
+    }
+
+    /** @return array<int, array<string, mixed>> */
     public function getDepartments(): array
     {
         $data  = $this->call('GetSupportDepartments');
@@ -130,8 +149,9 @@ class WhmcsService
         string $subject,
         string $message,
         string $priority = 'Medium',
+        ?int $serviceId = null,
     ): void {
-        $this->call('OpenTicket', [
+        $params = [
             'clientid' => $clientId,
             'name'     => $name,
             'email'    => $email,
@@ -139,7 +159,13 @@ class WhmcsService
             'subject'  => $subject,
             'message'  => $message,
             'priority' => $priority,
-        ]);
+        ];
+
+        if ($serviceId) {
+            $params['serviceid'] = $serviceId;
+        }
+
+        $this->call('OpenTicket', $params);
     }
 
     public function addReply(int $ticketId, int $clientId, string $message): void
